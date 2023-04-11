@@ -194,29 +194,13 @@ public class Game extends JPanel implements KeyListener {
 
     private static void displayMainMenu() {
         JFrame frame = new JFrame("Main Menu");
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.PAGE_AXIS));
-        frame.add(panel);
-
-        JLabel titleLabel = new JLabel("My Game");
-        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        panel.add(titleLabel);
-
-        JButton startButton = new JButton("Start Game");
-        startButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-        startButton.addActionListener(e -> startGame());
-        panel.add(startButton);
-
-        JButton loadButton = new JButton("Load Game from CSV File");
-        loadButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-        loadButton.addActionListener(e -> loadGame());
-        panel.add(loadButton);
-
+        MainMenu mainMenu = new MainMenu(new Game("/Levels/level1.csv"));
+        frame.add(mainMenu);
         frame.pack();
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
-
+    
     private static void startGame() {
         Game game = new Game("/Levels/level1.csv"); // or pass in a file path if you have a default level file
         JFrame frame = new JFrame("My Game");
@@ -241,6 +225,16 @@ public class Game extends JPanel implements KeyListener {
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setVisible(true);
         }
+    }
+
+    public void setVolume(float volume) {
+    }
+
+    public int getVolume() {
+        return 0;
+    }
+
+    public void resetHighScore() {
     }
     
 }
