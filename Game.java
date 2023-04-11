@@ -3,6 +3,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -18,12 +19,14 @@ public class Game extends JPanel implements KeyListener {
     private final int JUMP_SPEED = 10;
     private final int MOVE_SPEED = 5;
     private final int GRAVITY = 1;
+    private final String levelFilePath;
 
     private Player player = new Player(50, 50, 50, 50); // adjust the values as needed
 
     private List<Platform> platforms = new ArrayList<>();
 
     public Game(String levelFilePath) {
+        this.levelFilePath = levelFilePath;
         setFocusable(true);
         setPreferredSize(new Dimension(500, 500));
         addKeyListener(this);
@@ -34,8 +37,8 @@ public class Game extends JPanel implements KeyListener {
     
         // read platforms from the level file
         try {
-            File file = new File(levelFilePath);
-            Scanner scanner = new Scanner(file);
+            InputStream inputStream = getClass().getResourceAsStream(levelFilePath);
+            Scanner scanner = new Scanner(inputStream);
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
                 String[] tokens = line.split(",");
@@ -47,7 +50,9 @@ public class Game extends JPanel implements KeyListener {
                 platforms.add(platform);
             }
             scanner.close();
-        } catch (FileNotFoundException e) {
+        } catch (NullPointerException e) {
+            System.err.println("Could not find file: " + levelFilePath);
+        }catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -213,7 +218,7 @@ public class Game extends JPanel implements KeyListener {
     }
 
     private static void startGame() {
-        Game game = new Game(null); // or pass in a file path if you have a default level file
+        Game game = new Game("/Levels/level1.csv"); // or pass in a file path if you have a default level file
         JFrame frame = new JFrame("My Game");
         frame.add(game);
         frame.pack();
@@ -228,7 +233,7 @@ public class Game extends JPanel implements KeyListener {
         int result = fileChooser.showOpenDialog(null);
         if (result == JFileChooser.APPROVE_OPTION) {
             File selectedFile = fileChooser.getSelectedFile();
-            Game game = new Game(selectedFile.getPath());
+            Game game = new Game("/Levels/level1.csv");
             JFrame frame = new JFrame("My Game");
             frame.add(game);
             frame.pack();
