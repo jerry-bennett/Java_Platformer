@@ -1,104 +1,138 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+
 
 public class Game extends JPanel implements KeyListener {
     private int x = 50;
     private int y = 50;
     private final int size = 50;
-    private int dx = 0;
-    private int dy = 0;
-    private final int gravity = 1;
     private boolean onGround = false;
-    private final int platformX = 200;
-    private final int platformY = 200;
-    private final int platform2X = 200;
-    private final int platform2Y = 300;
-    private final int platformWidth = 200;
-    private final int platformHeight = 20;
 
-    private boolean jumping = false;
-    private int jumpCounter = 0;
-    private Image offScreenImage;
+    private final int MAX_JUMP_HEIGHT = 100;
+    private final int JUMP_SPEED = 10;
+    private final int MOVE_SPEED = 5;
+    private final int GRAVITY = 1;
 
-    public Game() {
+    private Player player = new Player(50, 50, 50, 50); // adjust the values as needed
+
+    private List<Platform> platforms = new ArrayList<>();
+
+    public Game(String levelFilePath) {
+        setFocusable(true);
         setPreferredSize(new Dimension(500, 500));
         addKeyListener(this);
         setFocusable(true);
+        addKeyListener(this);
         Timer timer = new Timer(10, e -> move());
         timer.start();
-    }
-
-    private void move() {
-        x += dx;
-        y += dy;
-        if (!onGround) {
-            dy += gravity;
+    
+        // read platforms from the level file
+        try {
+            File file = new File(levelFilePath);
+            Scanner scanner = new Scanner(file);
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+                String[] tokens = line.split(",");
+                int x = Integer.parseInt(tokens[0]);
+                int y = Integer.parseInt(tokens[1]);
+                int width = Integer.parseInt(tokens[2]);
+                int height = Integer.parseInt(tokens[3]);
+                Platform platform = new Platform(x, y, width, height);
+                platforms.add(platform);
+            }
+            scanner.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
         }
-        if (y + size >= getHeight()) {
-            y = getHeight() - size;
-            dy = 0;
+    }
+    
+    private boolean isCollidingWithPlatform(int platformX, int platformY, int platformWidth, int platformHeight) {
+        int playerX = player.getX();
+        int playerY = player.getY();
+    
+        if (playerX + player.getWidth() > platformX && playerX < platformX + platformWidth &&
+            playerY + player.getHeight() > platformY && playerY < platformY + platformHeight) {
+            return true;
+        }
+    
+        return false;
+    }
+    
+    
+    
+    private int getPlatformTop(int platformY, int platformHeight) {
+        return platformY - player.getHeight() - 1;
+    }
+    
+    
+    private void move() {
+        // Update player position based on current velocity
+        player.setX(player.getX() + player.getXVelocity());
+        player.setY(player.getY() + player.getYVelocity());
+    
+        // Check for collisions with platforms
+        boolean collided = false;
+        for (Platform platform : platforms) {
+            if (isCollidingWithPlatform(platform.getX(), platform.getY(), platform.getWidth(), platform.getHeight())) {
+                collided = true;
+                int platformTop = getPlatformTop(platform.getY(), platform.getHeight());
+                player.setY(platformTop - 1);  // move the player to the top of the platform
+                player.setYVelocity(0);        // set the vertical velocity to zero
+                onGround = true;
+                break;
+            }
+        }
+    
+        // Check if player reached the bottom of the game window
+        if (player.getY() + player.getHeight() >= getHeight()) {
             onGround = true;
-        } else if (dy >= 0 && y + size >= platformY && y + dy < platformY + platformHeight
-                && x + size > platformX && x < platformX + platformWidth) {
-            y = platformY - size;
-            dy = 0;
-            onGround = true;
-        } else if (dy >= 0 && y + size >= platform2Y && y + dy < platform2Y + platformHeight
-                && x + size > platform2X && x < platform2X + platformWidth) {
-            y = platform2Y - size;
-            dy = 0;
-            onGround = true;
-        } else {
+        }
+    
+        // Apply gravity if not on a platform
+        if (!collided) {
+            if (onGround) {
+                player.setYVelocity(0); // set the vertical velocity to zero if on the ground
+            } else {
+                player.setYVelocity(player.getYVelocity() + GRAVITY); // apply gravity if not on the ground
+            }
             onGround = false;
         }
-        if (x + size > platformX && x < platformX + platformWidth && y + size >= platformY && y < platformY + platformHeight && dy < 0) {
-            dy = -dy;
-            y = platformY + platformHeight;
-        } else if (x + size > platform2X && x < platform2X + platformWidth && y + size >= platform2Y && y < platform2Y + platformHeight && dy < 0) {
-            dy = -dy;
-            y = platform2Y + platformHeight;
+    
+        // Check boundaries
+        if (player.getX() < 0) { // player hits left boundary of the window
+            player.setX(0);
+            player.setXVelocity(0);
+        } else if (player.getX() + player.getWidth() > getWidth()) { // player hits right boundary of the window
+            player.setX(getWidth() - player.getWidth());
+            player.setXVelocity(0);
         }
-        if (x < 0) { // player hits left boundary of the window
-            x = 0;
-            dx = 0;
-        } else if (x + size > getWidth()) { // player hits right boundary of the window
-            x = getWidth() - size;
-            dx = 0;
-        }
+    
         repaint();
     }
     
     
     
-    
-
-    private void jump() {
-        if (onGround) {
-            jumping = true;
-        }
-    }
-
     @Override
-    protected void paintComponent(Graphics g) {
+    public void paintComponent(Graphics g) {
         super.paintComponent(g);
-        if (offScreenImage == null) {
-            offScreenImage = createImage(getWidth(), getHeight());
+
+        // draw platforms
+        g.setColor(Color.BLUE);
+        for (Platform platform : platforms) {
+            g.fillRect(platform.getX(), platform.getY(), platform.getWidth(), platform.getHeight());
         }
-        Graphics offScreenGraphics = offScreenImage.getGraphics();
-        offScreenGraphics.setColor(Color.BLACK);
-        offScreenGraphics.fillRect(0, 0, getWidth(), getHeight()); // clear the image
-        offScreenGraphics.setColor(Color.BLUE);
-        offScreenGraphics.fillRect(platformX, platformY, platformWidth, platformHeight);
-        offScreenGraphics.setColor(Color.WHITE);
-        offScreenGraphics.fillRect(x, y, size, size);
-        offScreenGraphics.setColor(Color.BLUE);
-        offScreenGraphics.fillRect(platform2X, platform2Y, platformWidth, platformHeight);
 
-        g.drawImage(offScreenImage, 0, 0, null);
+        // draw player
+        g.setColor(Color.RED);
+        g.fillRect(player.getX(), player.getY(), player.getWidth(), player.getHeight());
+
     }
-
-
 
 
     @Override
@@ -107,22 +141,25 @@ public class Game extends JPanel implements KeyListener {
         switch (keyCode) {
             case KeyEvent.VK_W:
                 if (onGround) {
-                    dy = -20;
+                    player.setYVelocity(-JUMP_SPEED);
                     onGround = false;
-                    jumping = true; // set jumping to true when player jumps
                 }
                 break;
             case KeyEvent.VK_A:
-                dx = -5;
+                player.setXVelocity(-MOVE_SPEED);
                 break;
             case KeyEvent.VK_S:
                 // do nothing
                 break;
             case KeyEvent.VK_D:
-                dx = 5;
+                player.setXVelocity(MOVE_SPEED);
+                break;
+            case KeyEvent.VK_ESCAPE:
+                // stop the game
+                System.exit(0);
                 break;
         }
-    }
+}
 
 
     @Override
@@ -134,7 +171,7 @@ public class Game extends JPanel implements KeyListener {
                 break;
             case KeyEvent.VK_A:
             case KeyEvent.VK_D:
-                dx = 0;
+                player.setXVelocity(0);
                 break;
             case KeyEvent.VK_S:
                 // do nothing
@@ -142,18 +179,63 @@ public class Game extends JPanel implements KeyListener {
         }
     }
 
+
     @Override
     public void keyTyped(KeyEvent e) {}
 
     public static void main(String[] args) {
-        JFrame frame = new JFrame("White Square");
-        Game Game = new Game();
-        MainMenu mainMenu = new MainMenu(Game);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.getContentPane().add(mainMenu);
-        frame.setResizable(false); // set the resizable property to false
+        displayMainMenu();
+    }
+
+    private static void displayMainMenu() {
+        JFrame frame = new JFrame("Main Menu");
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.PAGE_AXIS));
+        frame.add(panel);
+
+        JLabel titleLabel = new JLabel("My Game");
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panel.add(titleLabel);
+
+        JButton startButton = new JButton("Start Game");
+        startButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        startButton.addActionListener(e -> startGame());
+        panel.add(startButton);
+
+        JButton loadButton = new JButton("Load Game from CSV File");
+        loadButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        loadButton.addActionListener(e -> loadGame());
+        panel.add(loadButton);
+
         frame.pack();
+        frame.setLocationRelativeTo(null);
         frame.setVisible(true);
+    }
+
+    private static void startGame() {
+        Game game = new Game(null); // or pass in a file path if you have a default level file
+        JFrame frame = new JFrame("My Game");
+        frame.add(game);
+        frame.pack();
+        frame.setLocationRelativeTo(null);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setVisible(true);
+    }
+
+    private static void loadGame() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setCurrentDirectory(new File(System.getProperty("user.home")));
+        int result = fileChooser.showOpenDialog(null);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File selectedFile = fileChooser.getSelectedFile();
+            Game game = new Game(selectedFile.getPath());
+            JFrame frame = new JFrame("My Game");
+            frame.add(game);
+            frame.pack();
+            frame.setLocationRelativeTo(null);
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setVisible(true);
+        }
     }
     
 }
