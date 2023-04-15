@@ -113,8 +113,10 @@ public class Game extends JPanel implements KeyListener {
                 if (platform.getColor() == Color.GREEN) {
                     // Load a new level if the player collides with a green platform
                     String newLevelFilePath = "/Levels/level2.csv";
+                    removeKeyListener(this); // remove the current KeyListener
                     Game newGame = new Game(newLevelFilePath);
                     newGame.addKeyListener(this); // add the KeyListeners to the new instance of the Game class
+                    newGame.requestFocus(); 
                     JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
                     frame.setContentPane(newGame);
                     frame.pack();
@@ -148,7 +150,7 @@ public class Game extends JPanel implements KeyListener {
         }
     
         repaint();
-    }    
+    }        
     
     @Override
     public void paintComponent(Graphics g) {
@@ -270,9 +272,9 @@ public class Game extends JPanel implements KeyListener {
         frame.setVisible(true);
     }
 
-    private static void loadGame() {
+    static void loadGame() {
         JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setCurrentDirectory(new File(System.getProperty("user.home")));
+        fileChooser.setCurrentDirectory(new File(System.getProperty("user.dir")));
         int result = fileChooser.showOpenDialog(null);
         if (result == JFileChooser.APPROVE_OPTION) {
             File selectedFile = fileChooser.getSelectedFile();
