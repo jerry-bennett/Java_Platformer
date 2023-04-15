@@ -1,8 +1,11 @@
+import java.awt.Color;
+
 public class Platform {
     private int x;
     private int y;
     private int width;
     private int height;
+    private Color color;
 
     public Platform(int x, int y, int width, int height) {
         this.x = x;
@@ -25,6 +28,10 @@ public class Platform {
 
     public int getHeight() {
         return height;
+    }
+
+    public Color getColor() {
+        return color;
     }
 
     public boolean collidesWith(Player player) {

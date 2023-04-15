@@ -20,6 +20,9 @@ public class Game extends JPanel implements KeyListener {
     private final int MOVE_SPEED = 5;
     private final int GRAVITY = 1;
     private final String levelFilePath;
+    private LevelEndRectangle levelEndRectangle = new LevelEndRectangle(450, 0, 50, 500);
+    private int currentLevel = 1;
+
 
     private Player player = new Player(50, 50, 50, 50); // adjust the values as needed
 
@@ -62,12 +65,18 @@ public class Game extends JPanel implements KeyListener {
         int playerY = player.getY();
     
         if (playerX + player.getWidth() > platformX && playerX < platformX + platformWidth &&
-            playerY + player.getHeight() > platformY && playerY < platformY + platformHeight) {
+                playerY + player.getHeight() > platformY && playerY < platformY + platformHeight) {
+            return true;
+        }
+    
+        if (playerX + player.getWidth() > levelEndRectangle.getX() && playerX < levelEndRectangle.getX() + levelEndRectangle.getWidth() &&
+                playerY + player.getHeight() > levelEndRectangle.getY() && playerY < levelEndRectangle.getY() + levelEndRectangle.getHeight()) {
             return true;
         }
     
         return false;
     }
+    
     
     
     
@@ -90,6 +99,15 @@ public class Game extends JPanel implements KeyListener {
                 player.setY(platformTop - 1);  // move the player to the top of the platform
                 player.setYVelocity(0);        // set the vertical velocity to zero
                 onGround = true;
+                if (platform.getColor() == Color.GREEN) {
+                    // Load a new level if the player collides with a green platform
+                    String newLevelFilePath = "/Levels/level2.csv";
+                    Game newGame = new Game(newLevelFilePath);
+                    newGame.addKeyListener(this); // add the KeyListeners to the new instance of the Game class
+                    JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
+                    frame.setContentPane(newGame);
+                    frame.pack();
+                }
                 break;
             }
         }
@@ -119,9 +137,7 @@ public class Game extends JPanel implements KeyListener {
         }
     
         repaint();
-    }
-    
-    
+    }    
     
     @Override
     public void paintComponent(Graphics g) {
@@ -137,7 +153,40 @@ public class Game extends JPanel implements KeyListener {
         g.setColor(Color.RED);
         g.fillRect(player.getX(), player.getY(), player.getWidth(), player.getHeight());
 
+        g.setColor(Color.GREEN);
+        g.fillRect(levelEndRectangle.getX(), levelEndRectangle.getY(), levelEndRectangle.getWidth(), levelEndRectangle.getHeight());
+
+        if (isCollidingWithPlatform(levelEndRectangle.getX(), levelEndRectangle.getY(), levelEndRectangle.getWidth(), levelEndRectangle.getHeight())) {
+            // Load a new level if the player collides with the level end rectangle
+            String newLevelFilePath = "/Levels/level2.csv";
+            try {
+                InputStream inputStream = getClass().getResourceAsStream(newLevelFilePath);
+                Scanner scanner = new Scanner(inputStream);
+                List<Platform> newPlatforms = new ArrayList<>();
+                while (scanner.hasNextLine()) {
+                    String line = scanner.nextLine();
+                    String[] tokens = line.split(",");
+                    int x = Integer.parseInt(tokens[0]);
+                    int y = Integer.parseInt(tokens[1]);
+                    int width = Integer.parseInt(tokens[2]);
+                    int height = Integer.parseInt(tokens[3]);
+                    Platform platform = new Platform(x, y, width, height);
+                    newPlatforms.add(platform);
+                }
+                scanner.close();
+                Game newGame = new Game(newLevelFilePath);
+                newGame.platforms = newPlatforms;
+                JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
+                frame.setContentPane(newGame);
+                frame.pack();
+            } catch (NullPointerException e) {
+                System.err.println("Could not find file: " + newLevelFilePath);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
+
 
 
     @Override
@@ -145,10 +194,9 @@ public class Game extends JPanel implements KeyListener {
         int keyCode = e.getKeyCode();
         switch (keyCode) {
             case KeyEvent.VK_W:
-                if (onGround) {
-                    player.setYVelocity(-JUMP_SPEED);
-                    onGround = false;
-                }
+            System.out.println("Jumping");
+            player.setYVelocity(-JUMP_SPEED);
+            onGround = false;
                 break;
             case KeyEvent.VK_A:
                 player.setXVelocity(-MOVE_SPEED);
