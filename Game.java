@@ -78,21 +78,43 @@ public class Game extends JPanel implements KeyListener {
         return false;
     }
 
-    private boolean isCollidingWithPlatform(LevelEndRectangle levelEndRectangle){
-        Rectangle playerRect = player.getBounds();
-        Rectangle levelEndRect = levelEndRectangle.getBounds();
-        if(playerRect.intersects(levelEndRect)){
-            return true;
-        }
-        return false;
+    private static boolean isPlayerCollidingWithLevelEnd(LevelEndRectangle levelEnd, Player player){
+        var playerBounds = new Rectangle(player.getBounds());
+        var levelEndBounds = new Rectangle(levelEnd.getBounds());
+        return playerBounds.intersects(levelEndBounds);
     }
-    
-    
-    
     
     
     private int getPlatformTop(int platformY, int platformHeight) {
         return platformY - player.getHeight() - 1;
+    }
+
+    private void loadNewLevel(String newLevelFilePath) {
+        try {
+            InputStream inputStream = getClass().getResourceAsStream(newLevelFilePath);
+            Scanner scanner = new Scanner(inputStream);
+            List<Platform> newPlatforms = new ArrayList<>();
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+                String[] tokens = line.split(",");
+                int x = Integer.parseInt(tokens[0]);
+                int y = Integer.parseInt(tokens[1]);
+                int width = Integer.parseInt(tokens[2]);
+                int height = Integer.parseInt(tokens[3]);
+                Platform platform = new Platform(x, y, width, height);
+                newPlatforms.add(platform);
+            }
+            scanner.close();
+            Game newGame = new Game(newLevelFilePath);
+            newGame.platforms = newPlatforms;
+            JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
+            frame.setContentPane(newGame);
+            frame.pack();
+        } catch (NullPointerException e) {
+            System.err.println("Could not find file: " + newLevelFilePath);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
     
     
@@ -169,38 +191,12 @@ public class Game extends JPanel implements KeyListener {
         g.setColor(Color.GREEN);
         g.fillRect(levelEndRectangle.getX(), levelEndRectangle.getY(), levelEndRectangle.getWidth(), levelEndRectangle.getHeight());
 
-        if (isCollidingWithPlatform(levelEndRectangle)) {
+        if (isPlayerCollidingWithLevelEnd(levelEndRectangle, player)) {
             // Load a new level if the player collides with the level end rectangle
             String newLevelFilePath = "/Levels/level2.csv";
-            try {
-                InputStream inputStream = getClass().getResourceAsStream(newLevelFilePath);
-                Scanner scanner = new Scanner(inputStream);
-                List<Platform> newPlatforms = new ArrayList<>();
-                while (scanner.hasNextLine()) {
-                    String line = scanner.nextLine();
-                    String[] tokens = line.split(",");
-                    int x = Integer.parseInt(tokens[0]);
-                    int y = Integer.parseInt(tokens[1]);
-                    int width = Integer.parseInt(tokens[2]);
-                    int height = Integer.parseInt(tokens[3]);
-                    Platform platform = new Platform(x, y, width, height);
-                    newPlatforms.add(platform);
-                }
-                scanner.close();
-                Game newGame = new Game(newLevelFilePath);
-                newGame.platforms = newPlatforms;
-                JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
-                frame.setContentPane(newGame);
-                frame.pack();
-            } catch (NullPointerException e) {
-                System.err.println("Could not find file: " + newLevelFilePath);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            loadNewLevel(newLevelFilePath);
         }
     }
-
-
 
     @Override
     public void keyPressed(KeyEvent e) {
