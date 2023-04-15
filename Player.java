@@ -1,3 +1,5 @@
+import java.awt.Rectangle;
+
 public class Player {
     private int x;
     private int y;
@@ -34,6 +36,10 @@ public class Player {
 
     public void setYVelocity(int yVelocity) {
         this.yVelocity = yVelocity;
+    }
+
+    public Rectangle getBounds() {
+        return new Rectangle(x, y, width, height);
     }
 
     public int getX() {

@@ -1,4 +1,5 @@
 import java.awt.Color;
+import java.awt.Rectangle;
 
 public class Platform {
     private int x;
@@ -16,6 +17,10 @@ public class Platform {
 
     public int getX() {
         return x;
+    }
+
+    public Rectangle getBounds() {
+        return new Rectangle(x, y, width, height);
     }
 
     public int getY() {

@@ -60,22 +60,33 @@ public class Game extends JPanel implements KeyListener {
         }
     }
     
-    private boolean isCollidingWithPlatform(int platformX, int platformY, int platformWidth, int platformHeight) {
-        int playerX = player.getX();
-        int playerY = player.getY();
+    private boolean isCollidingWithPlatform(Platform platform) {
+        Rectangle playerRect = player.getBounds();
+        Rectangle platformRect = platform.getBounds();
     
-        if (playerX + player.getWidth() > platformX && playerX < platformX + platformWidth &&
-                playerY + player.getHeight() > platformY && playerY < platformY + platformHeight) {
-            return true;
-        }
-    
-        if (playerX + player.getWidth() > levelEndRectangle.getX() && playerX < levelEndRectangle.getX() + levelEndRectangle.getWidth() &&
-                playerY + player.getHeight() > levelEndRectangle.getY() && playerY < levelEndRectangle.getY() + levelEndRectangle.getHeight()) {
-            return true;
+        // Check for horizontal collision
+        if (playerRect.intersects(platformRect)) {
+            int playerBottom = playerRect.y + playerRect.height;
+            int platformTop = platformRect.y;
+            
+            // Check for vertical collision
+            if (playerBottom > platformTop && playerRect.y < platformTop) {
+                return true;
+            }
         }
     
         return false;
     }
+
+    private boolean isCollidingWithPlatform(LevelEndRectangle levelEndRectangle){
+        Rectangle playerRect = player.getBounds();
+        Rectangle levelEndRect = levelEndRectangle.getBounds();
+        if(playerRect.intersects(levelEndRect)){
+            return true;
+        }
+        return false;
+    }
+    
     
     
     
@@ -93,7 +104,7 @@ public class Game extends JPanel implements KeyListener {
         // Check for collisions with platforms
         boolean collided = false;
         for (Platform platform : platforms) {
-            if (isCollidingWithPlatform(platform.getX(), platform.getY(), platform.getWidth(), platform.getHeight())) {
+            if (isCollidingWithPlatform(platform)) {
                 collided = true;
                 int platformTop = getPlatformTop(platform.getY(), platform.getHeight());
                 player.setY(platformTop - 1);  // move the player to the top of the platform
@@ -156,7 +167,7 @@ public class Game extends JPanel implements KeyListener {
         g.setColor(Color.GREEN);
         g.fillRect(levelEndRectangle.getX(), levelEndRectangle.getY(), levelEndRectangle.getWidth(), levelEndRectangle.getHeight());
 
-        if (isCollidingWithPlatform(levelEndRectangle.getX(), levelEndRectangle.getY(), levelEndRectangle.getWidth(), levelEndRectangle.getHeight())) {
+        if (isCollidingWithPlatform(levelEndRectangle)) {
             // Load a new level if the player collides with the level end rectangle
             String newLevelFilePath = "/Levels/level2.csv";
             try {

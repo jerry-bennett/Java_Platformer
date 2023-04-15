@@ -62,20 +62,19 @@ public class MainMenu extends JPanel {
         button.setForeground(Color.WHITE);
         button.setContentAreaFilled(false);
         button.setFocusPainted(false);
-        button.setBorder(new RoundedBorder(10)); // Set the radius of the rounded corners to 10 pixels
+        button.setBorder((Border) new RoundedBorder(height));
         button.setPreferredSize(new Dimension(width, height));
         button.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 button.setForeground(Color.RED);
             }
-    
+
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 button.setForeground(Color.WHITE);
             }
         });
         return button;
     }
-    
 
     private void startNewGame() {
         JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
@@ -143,27 +142,27 @@ public class MainMenu extends JPanel {
     }
 
     public class RoundedBorder implements Border {
-        private int radius;
-    
-        public RoundedBorder(int radius) {
-            this.radius = radius;
-        }
-    
-        public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
-            Graphics2D g2 = (Graphics2D) g;
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(c.getForeground());
-            g2.draw(new RoundRectangle2D.Double(x, y, width - 1, height - 1, radius, radius));
-        }
-    
-        public Insets getBorderInsets(Component c) {
-            return new Insets(this.radius / 2, this.radius / 2, this.radius / 2, this.radius / 2);
-        }
-    
-        public boolean isBorderOpaque() {
-            return false;
-        }
+    private int radius;
+
+    public RoundedBorder(int radius) {
+        this.radius = radius;
     }
+
+    public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
+        Graphics2D g2 = (Graphics2D) g;
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setColor(c.getForeground());
+        g2.draw(new RoundRectangle2D.Double(x, y, width - 1, height - 1, radius, radius));
+    }
+
+    public Insets getBorderInsets(Component c) {
+        return new Insets(this.radius / 2, this.radius / 2, this.radius / 2, this.radius / 2);
+    }
+
+    public boolean isBorderOpaque() {
+        return false;
+    }
+}
     
     /**
      * A class that implements the ActionListener interface to handle button clicks.

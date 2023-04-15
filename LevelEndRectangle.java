@@ -1,3 +1,5 @@
+import java.awt.Rectangle;
+
 public class LevelEndRectangle {
     private int x;
     private int y;
@@ -13,6 +15,10 @@ public class LevelEndRectangle {
 
     public int getX() {
         return x;
+    }
+
+    public Rectangle getBounds() {
+        return new Rectangle(x, y, width, height);
     }
 
     public void setX(int x) {
