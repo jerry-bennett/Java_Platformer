@@ -2,7 +2,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,26 +9,17 @@ import java.util.Scanner;
 
 
 public class Game extends JPanel implements KeyListener {
-    private int x = 50;
-    private int y = 50;
-    private final int size = 50;
     private boolean onGround = false;
 
-    private final int MAX_JUMP_HEIGHT = 100;
     private final int JUMP_SPEED = 10;
     private final int MOVE_SPEED = 5;
     private final int GRAVITY = 1;
-    private final String levelFilePath;
     private LevelEndRectangle levelEndRectangle = new LevelEndRectangle(450, 0, 50, 500);
-    private int currentLevel = 1;
-
-
     private Player player = new Player(50, 50, 50, 50); // adjust the values as needed
 
     private List<Platform> platforms = new ArrayList<>();
 
     public Game(String levelFilePath) {
-        this.levelFilePath = levelFilePath;
         setFocusable(true);
         setPreferredSize(new Dimension(500, 500));
         addKeyListener(this);
@@ -258,22 +248,11 @@ public class Game extends JPanel implements KeyListener {
         frame.setVisible(true);
     }
     
-    private static void startGame() {
-        Game game = new Game("/Levels/level1.csv"); // or pass in a file path if you have a default level file
-        JFrame frame = new JFrame("My Game");
-        frame.add(game);
-        frame.pack();
-        frame.setLocationRelativeTo(null);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setVisible(true);
-    }
-
     static void loadGame() {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setCurrentDirectory(new File(System.getProperty("user.dir")));
         int result = fileChooser.showOpenDialog(null);
         if (result == JFileChooser.APPROVE_OPTION) {
-            File selectedFile = fileChooser.getSelectedFile();
             Game game = new Game("/Levels/level1.csv");
             JFrame frame = new JFrame("My Game");
             frame.add(game);
