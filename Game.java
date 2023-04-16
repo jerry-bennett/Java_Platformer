@@ -86,7 +86,7 @@ public class Game extends JPanel implements KeyListener {
     
     
     private int getPlatformTop(int platformY, int platformHeight) {
-        return platformY - player.getHeight() - 1;
+        return platformY - player.getHeight();
     }
 
     private void loadNewLevel(String newLevelFilePath) {
@@ -129,7 +129,7 @@ public class Game extends JPanel implements KeyListener {
             if (isCollidingWithPlatform(platform)) {
                 collided = true;
                 int platformTop = getPlatformTop(platform.getY(), platform.getHeight());
-                player.setY(platformTop - 1);  // move the player to the top of the platform
+                player.setY(platformTop);  // move the player to the top of the platform
                 player.setYVelocity(0);        // set the vertical velocity to zero
                 onGround = true;
                 if (platform.getColor() == Color.GREEN) {
