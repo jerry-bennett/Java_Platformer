@@ -35,7 +35,7 @@ public class Game extends JPanel implements KeyListener {
         addKeyListener(this);
         setFocusable(true);
         addKeyListener(this);
-        Timer timer = new Timer(10, e -> move());
+        Timer timer = new Timer(5, e -> move());
         timer.start();
     
         // read platforms from the level file
