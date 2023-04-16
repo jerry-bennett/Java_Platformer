@@ -80,6 +80,12 @@ public class Game extends JPanel implements KeyListener {
     }
 
     private void loadNewLevel(String newLevelFilePath) {
+        setFocusable(true);
+        setPreferredSize(new Dimension(500, 500));
+        removeKeyListener(this); // remove the previous key listener
+        Timer timer = new Timer(5, e -> move());
+        timer.start();
+    
         try {
             InputStream inputStream = getClass().getResourceAsStream(newLevelFilePath);
             Scanner scanner = new Scanner(inputStream);
@@ -100,13 +106,14 @@ public class Game extends JPanel implements KeyListener {
             JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
             frame.setContentPane(newGame);
             frame.pack();
+            newGame.requestFocusInWindow(); // request focus for the new instance of the Game class
+            newGame.addKeyListener(newGame); // add KeyListener after removing the old one
         } catch (NullPointerException e) {
             System.err.println("Could not find file: " + newLevelFilePath);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-    
     
     private void move() {
         // Update player position based on current velocity
@@ -122,16 +129,10 @@ public class Game extends JPanel implements KeyListener {
                 player.setY(platformTop);  // move the player to the top of the platform
                 player.setYVelocity(0);        // set the vertical velocity to zero
                 onGround = true;
-                if (platform.getColor() == Color.GREEN) {
+                if (isPlayerCollidingWithLevelEnd(levelEndRectangle, player)) {
                     // Load a new level if the player collides with a green platform
                     String newLevelFilePath = "/Levels/level2.csv";
-                    removeKeyListener(this); // remove the current KeyListener
-                    Game newGame = new Game(newLevelFilePath);
-                    newGame.addKeyListener(this); // add the KeyListeners to the new instance of the Game class
-                    newGame.requestFocus(); 
-                    JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
-                    frame.setContentPane(newGame);
-                    frame.pack();
+                    loadNewLevel(newLevelFilePath);
                 }
                 break;
             }
@@ -193,6 +194,29 @@ public class Game extends JPanel implements KeyListener {
         int keyCode = e.getKeyCode();
         switch (keyCode) {
             case KeyEvent.VK_W:
+            player.setYVelocity(-JUMP_SPEED);
+            onGround = false;
+                break;
+            case KeyEvent.VK_A:
+                player.setXVelocity(-MOVE_SPEED);
+                break;
+            case KeyEvent.VK_S:
+                // do nothing
+                break;
+            case KeyEvent.VK_D:
+                player.setXVelocity(MOVE_SPEED);
+                break;
+            case KeyEvent.VK_ESCAPE:
+                // stop the game
+                System.exit(0);
+                break;
+        }
+}
+@Override
+public void keyTyped(KeyEvent e) {
+    int keyCode = e.getKeyCode();
+        switch (keyCode) {
+            case KeyEvent.VK_W:
             System.out.println("Jumping");
             player.setYVelocity(-JUMP_SPEED);
             onGround = false;
@@ -232,9 +256,6 @@ public class Game extends JPanel implements KeyListener {
     }
 
 
-    @Override
-    public void keyTyped(KeyEvent e) {}
-
     public static void main(String[] args) {
         displayMainMenu();
     }
@@ -272,5 +293,5 @@ public class Game extends JPanel implements KeyListener {
 
     public void resetHighScore() {
     }
-    
+
 }
