@@ -216,7 +216,7 @@ public class Game extends JPanel implements KeyListener {
 
         // draw player
         g.setColor(Color.RED);
-        g.fillRect(player.getX(), player.getY(), player.getWidth(), player.getHeight());
+        g.fillRect(player.getX(), (int) player.getY(), player.getWidth(), player.getHeight());
 
         g.setColor(Color.GREEN);
         g.fillRect(levelEndRectangle.getX(), levelEndRectangle.getY(), levelEndRectangle.getWidth(), levelEndRectangle.getHeight());

@@ -15,6 +15,9 @@ public class Platform {
         this.height = height;
     }
 
+    public Platform(Rectangle bounds) {
+    }
+
     public int getX() {
         return x;
     }
@@ -41,7 +44,7 @@ public class Platform {
 
     public boolean collidesWith(Player player) {
         int playerX = player.getX();
-        int playerY = player.getY();
+        float playerY = player.getY();
         int playerWidth = player.getWidth();
         int playerHeight = player.getHeight();
 

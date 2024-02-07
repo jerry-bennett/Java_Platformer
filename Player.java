@@ -2,17 +2,18 @@ import java.awt.Rectangle;
 
 public class Player {
     private int x;
-    private int y;
+    private float y;
     private int width;
     private int height;
     private int xVelocity;
-    private int yVelocity;
+    private float yVelocity;
+    private Rectangle hitbox;
 
     public void setX(int newX) {
         this.x = newX;
     }
 
-    public void setY(int newY) {
+    public void setY(float newY) {
         this.y = newY;
     }
 
@@ -23,30 +24,34 @@ public class Player {
         this.height = height;
         this.xVelocity = 0;
         this.yVelocity = 0;
+        this.hitbox = new Rectangle(x, y, width, height);  // Initialize the hitbox
     }
 
     public void update() {
         x += xVelocity;
         y += yVelocity;
+
+        // Update the hitbox position based on player's position
+        hitbox.setLocation(x, (int) y);
     }
 
     public void setXVelocity(int xVelocity) {
         this.xVelocity = xVelocity;
     }
 
-    public void setYVelocity(int yVelocity) {
+    public void setYVelocity(float yVelocity) {
         this.yVelocity = yVelocity;
     }
 
     public Rectangle getBounds() {
-        return new Rectangle(x, y, width, height);
+        return hitbox;
     }
 
     public int getX() {
         return x;
     }
 
-    public int getY() {
+    public float getY() {
         return y;
     }
 
@@ -62,8 +67,12 @@ public class Player {
         return xVelocity;
     }
 
-    public int getYVelocity() {
+    public float getYVelocity() {
         return yVelocity;
     }
-    
+
+    public void setYVelocity(double d) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'setYVelocity'");
+    }
 }
