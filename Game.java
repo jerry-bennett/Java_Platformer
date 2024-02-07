@@ -54,12 +54,12 @@ public class Game extends JPanel implements KeyListener {
     }
     
     private boolean isCollidingWithPlatform(Platform platform) {
-        boolean bottom;
         Rectangle playerBounds = player.getBounds();
         Rectangle platformBounds = platform.getBounds();
     
         // Check if player is intersecting with the platform
         if (playerBounds.intersects(platformBounds)) {
+            System.out.println("Collision");
             // Determine the side of the collision based on hitbox position
             float dx = player.getX() - platform.getX();
             float dy = player.getY() - platform.getY();
@@ -75,15 +75,22 @@ public class Game extends JPanel implements KeyListener {
             if (collisionAngle >= 45 && collisionAngle < 135) {
                 // Top side collision
                 top = true;
+                bottom = false;
                 System.out.println("top");
+                player.setYVelocity(0);
             } else if (collisionAngle >= 135 && collisionAngle < 225) {
                 // Right side collision
                 // Handle accordingly
             } else if (collisionAngle >= 225 && collisionAngle < 315) {
                 // Bottom side collision
                 // Handle accordingly
+                top = false;
                 bottom = true;
                 System.out.println("bottom");
+                int platformTop = getPlatformTop(platform.getY(), platform.getHeight());
+                player.setY(platformTop);  // move the player to the top of the platform
+                player.setYVelocity(0);        // set the vertical velocity to zero
+                onGround = true;
             } else {
                 // Left side collision
                 // Handle accordingly
@@ -94,7 +101,6 @@ public class Game extends JPanel implements KeyListener {
     
         return false;  // No collision
     }
-        
 
     private static boolean isPlayerCollidingWithLevelEnd(LevelEndRectangle levelEnd, Player player){
         var playerBounds = new Rectangle(player.getBounds());
@@ -152,21 +158,12 @@ public class Game extends JPanel implements KeyListener {
         boolean collided = false;
         for (Platform platform : platforms) {
             if (isCollidingWithPlatform(platform)) {
-                //colission logic
                 collided = true;
+                //put the player on top of the platform
                 if(bottom = true){
-                    System.out.println("BOTTOM");
-                    //handle collision for bottom hitbox
-                    int platformTop = getPlatformTop(platform.getY(), platform.getHeight());
-                    player.setY(platformTop);  // move the player to the top of the platform
-                    player.setYVelocity(0);        // set the vertical velocity to zero
-                //onGround = true;
-                }else if(top = true){
-                    //handle collision for bottom hitbox
-                    int platformTop = getPlatformTop(platform.getY(), platform.getHeight());
-                    player.setY(platformTop - player.getHeight());
-                    player.setYVelocity(-1);
-                    System.out.println("TOPTOP");
+
+                }else if (top = true){
+
                 }
                 if (isPlayerCollidingWithLevelEnd(levelEndRectangle, player)) {
                     // Load a new level if the player collides with a green platform
@@ -216,7 +213,7 @@ public class Game extends JPanel implements KeyListener {
 
         // draw player
         g.setColor(Color.RED);
-        g.fillRect(player.getX(), (int) player.getY(), player.getWidth(), player.getHeight());
+        g.fillRect(player.getX(), player.getY(), player.getWidth(), player.getHeight());
 
         g.setColor(Color.GREEN);
         g.fillRect(levelEndRectangle.getX(), levelEndRectangle.getY(), levelEndRectangle.getWidth(), levelEndRectangle.getHeight());
