@@ -19,6 +19,9 @@ public class Game extends JPanel implements KeyListener {
 
     private List<Platform> platforms = new ArrayList<>();
 
+    boolean top = false;
+    boolean bottom = false;
+
     public Game(String levelFilePath) {
         setFocusable(true);
         setPreferredSize(new Dimension(500, 500));
@@ -51,22 +54,47 @@ public class Game extends JPanel implements KeyListener {
     }
     
     private boolean isCollidingWithPlatform(Platform platform) {
-        Rectangle playerRect = player.getBounds();
-        Rectangle platformRect = platform.getBounds();
+        boolean bottom;
+        Rectangle playerBounds = player.getBounds();
+        Rectangle platformBounds = platform.getBounds();
     
-        // Check for horizontal collision
-        if (playerRect.intersects(platformRect)) {
-            int playerBottom = playerRect.y + playerRect.height;
-            int platformTop = platformRect.y;
-            
-            // Check for vertical collision
-            if (playerBottom > platformTop && playerRect.y < platformTop) {
-                return true;
+        // Check if player is intersecting with the platform
+        if (playerBounds.intersects(platformBounds)) {
+            // Determine the side of the collision based on hitbox position
+            float dx = player.getX() - platform.getX();
+            float dy = player.getY() - platform.getY();
+    
+            float angle = (float) Math.atan2(dy, dx);
+            double collisionAngle = Math.toDegrees(angle);
+    
+            if (collisionAngle < 0) {
+                collisionAngle += 360;
             }
+    
+            // Now you can use collisionAngle to determine which side is colliding
+            if (collisionAngle >= 45 && collisionAngle < 135) {
+                // Top side collision
+                top = true;
+                System.out.println("top");
+            } else if (collisionAngle >= 135 && collisionAngle < 225) {
+                // Right side collision
+                // Handle accordingly
+            } else if (collisionAngle >= 225 && collisionAngle < 315) {
+                // Bottom side collision
+                // Handle accordingly
+                bottom = true;
+                System.out.println("bottom");
+            } else {
+                // Left side collision
+                // Handle accordingly
+            }
+    
+            return true;  // Return true for collision
         }
     
-        return false;
+        return false;  // No collision
     }
+        
 
     private static boolean isPlayerCollidingWithLevelEnd(LevelEndRectangle levelEnd, Player player){
         var playerBounds = new Rectangle(player.getBounds());
@@ -124,11 +152,22 @@ public class Game extends JPanel implements KeyListener {
         boolean collided = false;
         for (Platform platform : platforms) {
             if (isCollidingWithPlatform(platform)) {
+                //colission logic
                 collided = true;
-                int platformTop = getPlatformTop(platform.getY(), platform.getHeight());
-                player.setY(platformTop);  // move the player to the top of the platform
-                player.setYVelocity(0);        // set the vertical velocity to zero
-                onGround = true;
+                if(bottom = true){
+                    System.out.println("BOTTOM");
+                    //handle collision for bottom hitbox
+                    int platformTop = getPlatformTop(platform.getY(), platform.getHeight());
+                    player.setY(platformTop);  // move the player to the top of the platform
+                    player.setYVelocity(0);        // set the vertical velocity to zero
+                //onGround = true;
+                }else if(top = true){
+                    //handle collision for bottom hitbox
+                    int platformTop = getPlatformTop(platform.getY(), platform.getHeight());
+                    player.setY(platformTop - player.getHeight());
+                    player.setYVelocity(-1);
+                    System.out.println("TOPTOP");
+                }
                 if (isPlayerCollidingWithLevelEnd(levelEndRectangle, player)) {
                     // Load a new level if the player collides with a green platform
                     String newLevelFilePath = "/Levels/level2.csv";
