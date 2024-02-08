@@ -14,6 +14,10 @@ public class Game extends JPanel implements KeyListener {
     private final int JUMP_SPEED = 10;
     private final int MOVE_SPEED = 5;
     private final int GRAVITY = 1;
+    private boolean leftPressed = false;
+    private boolean rightPressed = false;
+    private boolean jumpPressed = false;
+    private boolean levelLoaded = false;
     private LevelEndRectangle levelEndRectangle = new LevelEndRectangle(450, 0, 50, 500);
     private Player player = new Player(50, 50, 50, 50); // adjust the values as needed
 
@@ -44,6 +48,7 @@ public class Game extends JPanel implements KeyListener {
                 int height = Integer.parseInt(tokens[3]);
                 Platform platform = new Platform(x, y, width, height);
                 platforms.add(platform);
+                levelLoaded = true;
             }
             scanner.close();
         } catch (NullPointerException e) {
@@ -53,64 +58,83 @@ public class Game extends JPanel implements KeyListener {
         }
     }
     
+    private enum CollisionSide {
+        LEFT, RIGHT, TOP, BOTTOM, NONE
+    }
+    
     private boolean isCollidingWithPlatform(Platform platform) {
         Rectangle playerBounds = player.getBounds();
         Rectangle platformBounds = platform.getBounds();
     
-        // Check if player is intersecting with the platform
         if (playerBounds.intersects(platformBounds)) {
-            System.out.println("Collision");
-            // Determine the side of the collision based on hitbox position
-            float dx = player.getX() - platform.getX();
-            float dy = player.getY() - platform.getY();
-    
-            float angle = (float) Math.atan2(dy, dx);
-            double collisionAngle = Math.toDegrees(angle);
-    
-            if (collisionAngle < 0) {
-                collisionAngle += 360;
-            }
-    
-            // Now you can use collisionAngle to determine which side is colliding
-            if (collisionAngle >= 45 && collisionAngle < 135) {
-                // Top side collision
-                top = true;
-                bottom = false;
-                System.out.println("top");
-                player.setYVelocity(0);
-            } else if (collisionAngle >= 135 && collisionAngle < 225) {
-                // Right side collision
-                // Handle accordingly
-            } else if (collisionAngle >= 225 && collisionAngle < 315) {
-                // Bottom side collision
-                // Handle accordingly
-                top = false;
-                bottom = true;
-                System.out.println("bottom");
-                int platformTop = getPlatformTop(platform.getY(), platform.getHeight());
-                player.setY(platformTop);  // move the player to the top of the platform
-                player.setYVelocity(0);        // set the vertical velocity to zero
-                onGround = true;
-            } else {
-                // Left side collision
-                // Handle accordingly
-            }
-    
-            return true;  // Return true for collision
+            CollisionSide collisionSide = determineCollisionSide(playerBounds, platformBounds);
+            handleCollision(collisionSide, platform);
+            return true;
         }
-    
-        return false;  // No collision
+        return false;
     }
+    
+    private CollisionSide determineCollisionSide(Rectangle playerBounds, Rectangle platformBounds) {
+        float playerLeft = playerBounds.x;
+        float playerRight = playerBounds.x + playerBounds.width;
+        float playerTop = playerBounds.y;
+        float playerBottom = playerBounds.y + playerBounds.height;
+
+        float platformLeft = platformBounds.x;
+        float platformRight = platformBounds.x + platformBounds.width;
+        float platformTop = platformBounds.y;
+        float platformBottom = platformBounds.y + platformBounds.height;
+
+        boolean collidingFromLeft = playerRight > platformLeft && playerLeft < platformLeft && player.getXVelocity() > 0;
+        boolean collidingFromRight = playerLeft < platformRight && playerRight > platformRight && player.getXVelocity() < 0;
+        boolean collidingFromTop = playerBottom > platformTop && playerTop < platformTop && player.getYVelocity() > 0;
+        boolean collidingFromBottom = playerTop < platformBottom && playerBottom > platformBottom && player.getYVelocity() < 0;
+
+        // Prioritize vertical collisions due to gravity's constant effect
+        if (collidingFromTop && !collidingFromBottom) {
+            return CollisionSide.TOP;
+        } else if (!collidingFromTop && collidingFromBottom) {
+            return CollisionSide.BOTTOM;
+        } else if (collidingFromLeft && !collidingFromRight) {
+            return CollisionSide.LEFT;
+        } else if (!collidingFromLeft && collidingFromRight) {
+            return CollisionSide.RIGHT;
+        }
+
+        return CollisionSide.NONE; // If no clear side of collision is detected
+
+    }
+    
+    private void handleCollision(CollisionSide collisionSide, Platform platform) {
+        switch (collisionSide) {
+            case LEFT:
+                // Handle collision on the left side
+                player.setXVelocity(0);
+                break;
+            case RIGHT:
+                // Handle collision on the right side
+                player.setXVelocity(0);
+                break;
+            case TOP:
+                player.setYVelocity(0);  // Example of handling top side collision
+                break;
+            case BOTTOM:
+                // Handle collision on the bottom side
+                player.setY(platform.getY() + platform.getHeight());
+                player.setYVelocity(0);
+                onGround = true;
+                break;
+            default:
+                // No collision handling needed
+                break;
+        }
+    }
+    
 
     private static boolean isPlayerCollidingWithLevelEnd(LevelEndRectangle levelEnd, Player player){
         var playerBounds = new Rectangle(player.getBounds());
         var levelEndBounds = new Rectangle(levelEnd.getBounds());
         return playerBounds.intersects(levelEndBounds);
-    }
-    
-    
-    private int getPlatformTop(int platformY, int platformHeight) {
-        return platformY - player.getHeight();
     }
 
     private void loadNewLevel(String newLevelFilePath) {
@@ -225,29 +249,57 @@ public class Game extends JPanel implements KeyListener {
         }
     }
 
-    @Override
-    public void keyPressed(KeyEvent e) {
-        int keyCode = e.getKeyCode();
-        switch (keyCode) {
-            case KeyEvent.VK_W:
+@Override
+public void keyPressed(KeyEvent e) {
+    int keyCode = e.getKeyCode();
+    switch (keyCode) {
+        case KeyEvent.VK_W:
+            // Only jump if on the ground and not already pressing jump
             player.setYVelocity(-JUMP_SPEED);
             onGround = false;
-                break;
-            case KeyEvent.VK_A:
-                player.setXVelocity(-MOVE_SPEED);
-                break;
-            case KeyEvent.VK_S:
-                // do nothing
-                break;
-            case KeyEvent.VK_D:
-                player.setXVelocity(MOVE_SPEED);
-                break;
-            case KeyEvent.VK_ESCAPE:
-                // stop the game
-                System.exit(0);
-                break;
-        }
+            jumpPressed = true;
+            System.out.println("Jump");
+            break;
+        case KeyEvent.VK_A:
+            leftPressed = true;
+            player.setXVelocity(-MOVE_SPEED);
+            break;
+        case KeyEvent.VK_D:
+            rightPressed = true;
+            player.setXVelocity(MOVE_SPEED);
+            break;
+        case KeyEvent.VK_ESCAPE:
+            // stop the game
+            System.exit(0);
+            break;
+    }
 }
+
+public void keyReleased(KeyEvent e) {
+    int keyCode = e.getKeyCode();
+    switch (keyCode) {
+        case KeyEvent.VK_W:
+            jumpPressed = false;
+            break;
+        case KeyEvent.VK_A:
+            leftPressed = false;
+            if (!rightPressed) { // Stop moving left if right is not pressed
+                player.setXVelocity(0);
+            } else {
+                player.setXVelocity(MOVE_SPEED); // Move right if right is still pressed
+            }
+            break;
+        case KeyEvent.VK_D:
+            rightPressed = false;
+            if (!leftPressed) { // Stop moving right if left is not pressed
+                player.setXVelocity(0);
+            } else {
+                player.setXVelocity(-MOVE_SPEED); // Move left if left is still pressed
+            }
+            break;
+    }
+}
+
 @Override
 public void keyTyped(KeyEvent e) {
     int keyCode = e.getKeyCode();
@@ -272,24 +324,6 @@ public void keyTyped(KeyEvent e) {
                 break;
         }
 }
-
-
-    @Override
-    public void keyReleased(KeyEvent e) {
-        int keyCode = e.getKeyCode();
-        switch (keyCode) {
-            case KeyEvent.VK_W:
-                // do nothing
-                break;
-            case KeyEvent.VK_A:
-            case KeyEvent.VK_D:
-                player.setXVelocity(0);
-                break;
-            case KeyEvent.VK_S:
-                // do nothing
-                break;
-        }
-    }
 
 
     public static void main(String[] args) {
