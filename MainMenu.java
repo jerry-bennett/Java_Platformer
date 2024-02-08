@@ -66,21 +66,35 @@ public class MainMenu extends JPanel {
         JButton button = new JButton(text);
         button.setFont(new Font("Montserrat", Font.BOLD, 36));
         button.setForeground(Color.WHITE);
-        button.setContentAreaFilled(false);
+        // Apply a background color
+        button.setOpaque(true);
+        button.setBackground(new Color(60, 63, 65)); // Dark background
+        button.setContentAreaFilled(true);
         button.setFocusPainted(false);
-        button.setBorder((Border) new RoundedBorder(height));
+        button.setBorder(new RoundedBorder(20)); // Adjust the radius as needed
         button.setPreferredSize(new Dimension(width, height));
+    
+        // Mouse listener for hover effects
         button.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
-                button.setForeground(Color.RED);
+                button.setForeground(Color.YELLOW); // Change text color on hover
+                button.setBackground(new Color(85, 83, 85)); // Lighter background on hover
             }
-
+    
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 button.setForeground(Color.WHITE);
+                button.setBackground(new Color(60, 63, 65)); // Original background color
             }
         });
+    
+        // Optional: Add a shadow effect (would require custom painting or using a layered pane)
+        // button.setBorder(BorderFactory.createCompoundBorder(
+        //     button.getBorder(), 
+        //     BorderFactory.createEmptyBorder(5, 5, 5, 5))); // Example for adding space for shadow
+        
         return button;
     }
+    
 
     private void showOptions() {
         // code for options dialog
