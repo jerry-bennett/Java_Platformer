@@ -255,6 +255,9 @@ public void keyPressed(KeyEvent e) {
     switch (keyCode) {
         case KeyEvent.VK_W:
             // Only jump if on the ground and not already pressing jump
+            // if(onGround == false){
+            //     break;
+            // }
             player.setYVelocity(-JUMP_SPEED);
             onGround = false;
             jumpPressed = true;
@@ -332,12 +335,13 @@ public void keyTyped(KeyEvent e) {
 
     private static void displayMainMenu() {
         JFrame frame = new JFrame("Main Menu");
-        MainMenu mainMenu = new MainMenu(new Game("/Levels/level1.csv"));
+        MainMenu mainMenu = new MainMenu();
         frame.add(mainMenu);
         frame.pack();
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
+    
     
     static void loadGame() {
         JFileChooser fileChooser = new JFileChooser();

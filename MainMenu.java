@@ -8,8 +8,7 @@ public class MainMenu extends JPanel {
     private JButton loadGameButton; // added button
     private Game game;
 
-    public MainMenu(Game game) {
-        this.game = game;
+    public MainMenu() {
 
         setLayout(new BorderLayout());
 
@@ -52,6 +51,17 @@ public class MainMenu extends JPanel {
         add(buttonPanel, BorderLayout.CENTER);
     }
 
+    private void startNewGame() {
+        // Create a new Game instance here instead
+        Game game = new Game("/Levels/level1.csv"); // Initialize the game when needed
+        JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
+        frame.remove(this);
+        frame.add(game);
+        game.requestFocus();
+        frame.pack();
+        frame.setVisible(true); // Make sure the frame is visible again if needed
+    }
+
     private JButton createButton(String text, int width, int height) {
         JButton button = new JButton(text);
         button.setFont(new Font("Montserrat", Font.BOLD, 36));
@@ -70,14 +80,6 @@ public class MainMenu extends JPanel {
             }
         });
         return button;
-    }
-
-    private void startNewGame() {
-        JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
-        frame.remove(this);
-        frame.add(game);
-        game.requestFocus();
-        frame.pack();
     }
 
     private void showOptions() {
