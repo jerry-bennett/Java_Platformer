@@ -75,6 +75,7 @@ public class Game extends JPanel implements KeyListener {
     }
     
     private CollisionSide determineCollisionSide(Rectangle playerBounds, Rectangle platformBounds) {
+        
         float playerLeft = playerBounds.x;
         float playerRight = playerBounds.x + playerBounds.width;
         float playerTop = playerBounds.y;
@@ -106,29 +107,29 @@ public class Game extends JPanel implements KeyListener {
     }
     
     private void handleCollision(CollisionSide collisionSide, Platform platform) {
-        switch (collisionSide) {
-            case LEFT:
-                // Handle collision on the left side
-                player.setXVelocity(0);
-                break;
-            case RIGHT:
-                // Handle collision on the right side
-                player.setXVelocity(0);
-                break;
-            case TOP:
-                player.setYVelocity(0);  // Example of handling top side collision
-                break;
-            case BOTTOM:
-                // Handle collision on the bottom side
-                player.setY(platform.getY() + platform.getHeight());
-                player.setYVelocity(0);
-                onGround = true;
-                break;
-            default:
-                // No collision handling needed
-                break;
-        }
+    switch (collisionSide) {
+        case LEFT:
+            player.setX(platform.getX() - player.getWidth());
+            player.setXVelocity(0);
+            break;
+        case RIGHT:
+            player.setX(platform.getX() + platform.getWidth());
+            player.setXVelocity(0);
+            break;
+        case TOP:
+            player.setY(platform.getY() - player.getHeight());
+            player.setYVelocity(0);
+            onGround = true;
+            break;
+        case BOTTOM:
+            player.setY(platform.getY() + platform.getHeight());
+            player.setYVelocity(0);
+            break;
+        default:
+            break;
     }
+}
+
     
 
     private static boolean isPlayerCollidingWithLevelEnd(LevelEndRectangle levelEnd, Player player){
@@ -261,7 +262,6 @@ public void keyPressed(KeyEvent e) {
             player.setYVelocity(-JUMP_SPEED);
             onGround = false;
             jumpPressed = true;
-            System.out.println("Jump");
             break;
         case KeyEvent.VK_A:
             leftPressed = true;
