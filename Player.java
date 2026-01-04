@@ -39,8 +39,9 @@ public class Player {
     }
 
     public Rectangle getBounds() {
-        return new Rectangle(x, y, width, height);
+    return new Rectangle((int)x, (int)y, width, height);
     }
+
 
     public int getX() {
         return x;

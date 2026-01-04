@@ -11,7 +11,7 @@ import java.util.Scanner;
 public class Game extends JPanel implements KeyListener {
     private boolean onGround = false;
 
-    private final int JUMP_SPEED = 10;
+    private final int JUMP_SPEED = 15;
     private final int MOVE_SPEED = 5;
     private final int GRAVITY = 1;
     private boolean leftPressed = false;
@@ -58,80 +58,6 @@ public class Game extends JPanel implements KeyListener {
         }
     }
     
-    private enum CollisionSide {
-        LEFT, RIGHT, TOP, BOTTOM, NONE
-    }
-    
-    private boolean isCollidingWithPlatform(Platform platform) {
-        Rectangle playerBounds = player.getBounds();
-        Rectangle platformBounds = platform.getBounds();
-    
-        if (playerBounds.intersects(platformBounds)) {
-            CollisionSide collisionSide = determineCollisionSide(playerBounds, platformBounds);
-            handleCollision(collisionSide, platform);
-            return true;
-        }
-        return false;
-    }
-    
-    private CollisionSide determineCollisionSide(Rectangle playerBounds, Rectangle platformBounds) {
-        
-        float playerLeft = playerBounds.x;
-        float playerRight = playerBounds.x + playerBounds.width;
-        float playerTop = playerBounds.y;
-        float playerBottom = playerBounds.y + playerBounds.height;
-
-        float platformLeft = platformBounds.x;
-        float platformRight = platformBounds.x + platformBounds.width;
-        float platformTop = platformBounds.y;
-        float platformBottom = platformBounds.y + platformBounds.height;
-
-        boolean collidingFromLeft = playerRight > platformLeft && playerLeft < platformLeft && player.getXVelocity() > 0;
-        boolean collidingFromRight = playerLeft < platformRight && playerRight > platformRight && player.getXVelocity() < 0;
-        boolean collidingFromTop = playerBottom > platformTop && playerTop < platformTop && player.getYVelocity() > 0;
-        boolean collidingFromBottom = playerTop < platformBottom && playerBottom > platformBottom && player.getYVelocity() < 0;
-
-        // Prioritize vertical collisions due to gravity's constant effect
-        if (collidingFromTop && !collidingFromBottom) {
-            return CollisionSide.TOP;
-        } else if (!collidingFromTop && collidingFromBottom) {
-            return CollisionSide.BOTTOM;
-        } else if (collidingFromLeft && !collidingFromRight) {
-            return CollisionSide.LEFT;
-        } else if (!collidingFromLeft && collidingFromRight) {
-            return CollisionSide.RIGHT;
-        }
-
-        return CollisionSide.NONE; // If no clear side of collision is detected
-
-    }
-    
-    private void handleCollision(CollisionSide collisionSide, Platform platform) {
-    switch (collisionSide) {
-        case LEFT:
-            player.setX(platform.getX() - player.getWidth());
-            player.setXVelocity(0);
-            break;
-        case RIGHT:
-            player.setX(platform.getX() + platform.getWidth());
-            player.setXVelocity(0);
-            break;
-        case TOP:
-            player.setY(platform.getY() - player.getHeight());
-            player.setYVelocity(0);
-            onGround = true;
-            break;
-        case BOTTOM:
-            player.setY(platform.getY() + platform.getHeight());
-            player.setYVelocity(0);
-            break;
-        default:
-            break;
-    }
-}
-
-    
-
     private static boolean isPlayerCollidingWithLevelEnd(LevelEndRectangle levelEnd, Player player){
         var playerBounds = new Rectangle(player.getBounds());
         var levelEndBounds = new Rectangle(levelEnd.getBounds());
@@ -175,56 +101,43 @@ public class Game extends JPanel implements KeyListener {
     }
     
     private void move() {
-        // Update player position based on current velocity
-        player.setX(player.getX() + player.getXVelocity());
-        player.setY(player.getY() + player.getYVelocity());
-    
-        // Check for collisions with platforms
-        boolean collided = false;
-        for (Platform platform : platforms) {
-            if (isCollidingWithPlatform(platform)) {
-                collided = true;
-                //put the player on top of the platform
-                if(bottom = true){
+    // 1. Handle X Movement
+    player.setX(player.getX() + player.getXVelocity());
+    for (Platform platform : platforms) {
+        if (player.getBounds().intersects(platform.getBounds())) {
+            if (player.getXVelocity() > 0) player.setX(platform.getX() - player.getWidth());
+            else if (player.getXVelocity() < 0) player.setX(platform.getX() + platform.getWidth());
+        }
+    }
 
-                }else if (top = true){
+    // 2. Handle Y Movement & Gravity
+    player.setYVelocity(player.getYVelocity() + GRAVITY);
+    player.setY(player.getY() + player.getYVelocity());
 
-                }
-                if (isPlayerCollidingWithLevelEnd(levelEndRectangle, player)) {
-                    // Load a new level if the player collides with a green platform
-                    String newLevelFilePath = "/Levels/level2.csv";
-                    loadNewLevel(newLevelFilePath);
-                }
-                break;
+    // 3. Collision Resolution
+    for (Platform platform : platforms) {
+        if (player.getBounds().intersects(platform.getBounds())) {
+            if (player.getYVelocity() > 0) { // Falling Down
+                player.setY(platform.getY() - player.getHeight());
+                player.setYVelocity(0);
+            } else if (player.getYVelocity() < 0) { // Hitting ceiling
+                player.setY(platform.getY() + platform.getHeight());
+                player.setYVelocity(0);
             }
         }
-    
-        // Check if player reached the bottom of the game window
-        if (player.getY() + player.getHeight() >= getHeight()) {
-            onGround = true;
-        }
-    
-        // Apply gravity if not on a platform
-        if (!collided) {
-            if (onGround) {
-                player.setYVelocity(0); // set the vertical velocity to zero if on the ground
-            } else {
-                player.setYVelocity(player.getYVelocity() + GRAVITY); // apply gravity if not on the ground
-            }
-            onGround = false;
-        }
-    
-        // Check boundaries
-        if (player.getX() < 0) { // player hits left boundary of the window
-            player.setX(0);
-            player.setXVelocity(0);
-        } else if (player.getX() + player.getWidth() > getWidth()) { // player hits right boundary of the window
-            player.setX(getWidth() - player.getWidth());
-            player.setXVelocity(0);
-        }
-    
-        repaint();
-    }        
+    }
+
+    // 4. Floor Boundary
+    if (player.getY() + player.getHeight() >= getHeight()) {
+        player.setY(getHeight() - player.getHeight());
+        player.setYVelocity(0);
+    }
+
+    // 5. UPDATE onGround status at the very end
+    onGround = checkOnGround();
+
+    repaint();
+}
     
     @Override
     public void paintComponent(Graphics g) {
@@ -255,14 +168,11 @@ public void keyPressed(KeyEvent e) {
     int keyCode = e.getKeyCode();
     switch (keyCode) {
         case KeyEvent.VK_W:
-            // Only jump if on the ground and not already pressing jump
-            // if(onGround == false){
-            //     break;
-            // }
+        if(onGround) { 
             player.setYVelocity(-JUMP_SPEED);
-            onGround = false;
-            jumpPressed = true;
-            break;
+            onGround = false; 
+        }
+        break;
         case KeyEvent.VK_A:
             leftPressed = true;
             player.setXVelocity(-MOVE_SPEED);
@@ -303,29 +213,24 @@ public void keyReleased(KeyEvent e) {
     }
 }
 
+private boolean checkOnGround() {
+    // Check window floor first
+    if (player.getY() + player.getHeight() >= getHeight() - 1) {
+        return true;
+    }
+
+    // Check all platforms
+    Rectangle footer = new Rectangle(player.getX(), player.getY() + player.getHeight(), player.getWidth(), 1);
+    for (Platform platform : platforms) {
+        if (footer.intersects(platform.getBounds())) {
+            return true;
+        }
+    }
+    return false;
+}
+
 @Override
 public void keyTyped(KeyEvent e) {
-    int keyCode = e.getKeyCode();
-        switch (keyCode) {
-            case KeyEvent.VK_W:
-            System.out.println("Jumping");
-            player.setYVelocity(-JUMP_SPEED);
-            onGround = false;
-                break;
-            case KeyEvent.VK_A:
-                player.setXVelocity(-MOVE_SPEED);
-                break;
-            case KeyEvent.VK_S:
-                // do nothing
-                break;
-            case KeyEvent.VK_D:
-                player.setXVelocity(MOVE_SPEED);
-                break;
-            case KeyEvent.VK_ESCAPE:
-                // stop the game
-                System.exit(0);
-                break;
-        }
 }
 
 
