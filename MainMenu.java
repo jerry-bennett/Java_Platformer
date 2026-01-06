@@ -6,7 +6,6 @@ import java.awt.geom.RoundRectangle2D;
 public class MainMenu extends JPanel { 
     private JButton newGameButton;
     private JButton loadGameButton; // added button
-    private Game game;
 
     public MainMenu() {
 
@@ -86,11 +85,6 @@ public class MainMenu extends JPanel {
                 button.setBackground(new Color(60, 63, 65)); // Original background color
             }
         });
-    
-        // Optional: Add a shadow effect (would require custom painting or using a layered pane)
-        // button.setBorder(BorderFactory.createCompoundBorder(
-        //     button.getBorder(), 
-        //     BorderFactory.createEmptyBorder(5, 5, 5, 5))); // Example for adding space for shadow
         
         return button;
     }

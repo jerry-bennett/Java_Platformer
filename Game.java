@@ -16,8 +16,6 @@ public class Game extends JPanel implements KeyListener {
     private final int GRAVITY = 1;
     private boolean leftPressed = false;
     private boolean rightPressed = false;
-    private boolean jumpPressed = false;
-    private boolean levelLoaded = false;
     private LevelEndRectangle levelEndRectangle = new LevelEndRectangle(450, 0, 50, 500);
     private Player player = new Player(50, 50, 50, 50); // adjust the values as needed
 
@@ -48,7 +46,6 @@ public class Game extends JPanel implements KeyListener {
                 int height = Integer.parseInt(tokens[3]);
                 Platform platform = new Platform(x, y, width, height);
                 platforms.add(platform);
-                levelLoaded = true;
             }
             scanner.close();
         } catch (NullPointerException e) {
@@ -192,7 +189,6 @@ public void keyReleased(KeyEvent e) {
     int keyCode = e.getKeyCode();
     switch (keyCode) {
         case KeyEvent.VK_W:
-            jumpPressed = false;
             break;
         case KeyEvent.VK_A:
             leftPressed = false;
