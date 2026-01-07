@@ -153,6 +153,7 @@ public class Game extends JPanel implements KeyListener {
         g.setColor(Color.GREEN);
         g.fillRect(levelEndRectangle.getX(), levelEndRectangle.getY(), levelEndRectangle.getWidth(), levelEndRectangle.getHeight());
 
+        // logic for when the player reaches the level end
         if (isPlayerCollidingWithLevelEnd(levelEndRectangle, player)) {
             // Load a new level if the player collides with the level end rectangle
             String newLevelFilePath = "/Levels/level2.csv";
@@ -160,6 +161,7 @@ public class Game extends JPanel implements KeyListener {
         }
     }
 
+    // WASD controls, key pressed
 @Override
 public void keyPressed(KeyEvent e) {
     int keyCode = e.getKeyCode();
@@ -185,6 +187,7 @@ public void keyPressed(KeyEvent e) {
     }
 }
 
+// WASD controls, key released
 public void keyReleased(KeyEvent e) {
     int keyCode = e.getKeyCode();
     switch (keyCode) {
@@ -209,6 +212,7 @@ public void keyReleased(KeyEvent e) {
     }
 }
 
+// logic for seeing if the player character is on the "ground". currently the game window border is the ground.
 private boolean checkOnGround() {
     // Check window floor first
     if (player.getY() + player.getHeight() >= getHeight() - 1) {
@@ -225,11 +229,12 @@ private boolean checkOnGround() {
     return false;
 }
 
+//not sure why this is necessary but the game gets upset if i don't have this function
 @Override
 public void keyTyped(KeyEvent e) {
 }
 
-
+    // main loop
     public static void main(String[] args) {
         displayMainMenu();
     }
@@ -259,14 +264,8 @@ public void keyTyped(KeyEvent e) {
         }
     }
 
-    public void setVolume(float volume) {
-    }
-
     public int getVolume() {
         return 0;
-    }
-
-    public void resetHighScore() {
     }
 
 }
