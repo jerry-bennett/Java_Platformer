@@ -6,16 +6,11 @@ import java.awt.geom.RoundRectangle2D;
 public class MainMenu extends JPanel { 
     private JButton newGameButton;
     private JButton loadGameButton; // added button
+    private Image backgroundImage = new ImageIcon(getClass().getResource("/background.jpg")).getImage();
 
     public MainMenu() {
 
         setLayout(new BorderLayout());
-
-        ImageIcon backgroundImage = new ImageIcon(getClass().getResource("/background.jpg"));
-        JPanel backgroundPanel = new JPanel(new BorderLayout());
-        backgroundPanel.setOpaque(false);
-        backgroundPanel.add(new JLabel(backgroundImage), BorderLayout.CENTER);
-        add(backgroundPanel);
 
         // Create a title panel and add it to the main menu
         JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 50));
@@ -48,6 +43,15 @@ public class MainMenu extends JPanel {
         buttonPanel.add(exitButton);
 
         add(buttonPanel, BorderLayout.CENTER);
+    }
+
+    // 2. Add this method to draw the background image
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        if (backgroundImage != null) {
+            g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
+        }
     }
 
     private void startNewGame() {
