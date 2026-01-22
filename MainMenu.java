@@ -15,7 +15,7 @@ public class MainMenu extends JPanel {
         // Create a title panel and add it to the main menu
         JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 50));
         titlePanel.setOpaque(false);
-        JLabel titleLabel = new JLabel("My Platformer Game");
+        JLabel titleLabel = new JLabel("Platform Game");
         titleLabel.setForeground(Color.WHITE);
         titleLabel.setFont(new Font("Montserrat", Font.BOLD, 72));
         titlePanel.add(titleLabel);
