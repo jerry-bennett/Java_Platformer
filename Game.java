@@ -21,6 +21,9 @@ public class Game extends JPanel implements KeyListener {
 
     private List<Platform> platforms = new ArrayList<>();
 
+    private int camX = 0;
+    private int camY = 0;
+
     boolean top = false;
     boolean bottom = false;
 
@@ -134,11 +137,22 @@ public class Game extends JPanel implements KeyListener {
     onGround = checkOnGround();
 
     repaint();
+
+    // Center the camera on the player
+    camX = player.getX() - (getWidth() / 2);
+    camY = player.getY() - (getHeight() / 2);
+
+    // Keep camera from showing out-of-bounds (the "dead zone")
+    if (camX < 0) camX = 0;
+    if (camY < 0) camY = 0;
 }
     
     @Override
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
+        Graphics2D g2d = (Graphics2D) g;
+
+        g2d.translate(-camX, -camY); // Shift the world
 
         // draw platforms
         g.setColor(Color.BLUE);
@@ -159,6 +173,8 @@ public class Game extends JPanel implements KeyListener {
             String newLevelFilePath = "/Levels/level2.csv";
             loadNewLevel(newLevelFilePath);
         }
+
+        g2d.translate(camX, camY); // Reset translation
     }
 
     // WASD controls, key pressed
@@ -192,7 +208,9 @@ public void keyReleased(KeyEvent e) {
     int keyCode = e.getKeyCode();
     switch (keyCode) {
         case KeyEvent.VK_W:
-            break;
+            if (player.getYVelocity() < 0) {
+            player.setYVelocity(player.getYVelocity() / 2);
+        }
         case KeyEvent.VK_A:
             leftPressed = false;
             if (!rightPressed) { // Stop moving left if right is not pressed
