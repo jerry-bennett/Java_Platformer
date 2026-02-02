@@ -14,6 +14,7 @@ public class Game extends JPanel implements KeyListener {
     private final int JUMP_SPEED = 15;
     private final int MOVE_SPEED = 5;
     private final int GRAVITY = 1;
+    private int levelWidth = 0;
     private boolean leftPressed = false;
     private boolean rightPressed = false;
     private LevelEndRectangle levelEndRectangle = new LevelEndRectangle(450, 0, 50, 500);
@@ -82,6 +83,8 @@ public class Game extends JPanel implements KeyListener {
                 int y = Integer.parseInt(tokens[1]);
                 int width = Integer.parseInt(tokens[2]);
                 int height = Integer.parseInt(tokens[3]);
+                int platformRightEdge = x + width;
+                if (platformRightEdge > levelWidth) levelWidth = platformRightEdge;
                 Platform platform = new Platform(x, y, width, height);
                 newPlatforms.add(platform);
             }
@@ -211,6 +214,7 @@ public void keyReleased(KeyEvent e) {
             if (player.getYVelocity() < 0) {
             player.setYVelocity(player.getYVelocity() / 2);
         }
+        break;
         case KeyEvent.VK_A:
             leftPressed = false;
             if (!rightPressed) { // Stop moving left if right is not pressed
