@@ -37,7 +37,10 @@ public class Game extends JPanel implements KeyListener {
         addKeyListener(this);
         Timer timer = new Timer(5, e -> move());
         timer.start();
-    
+
+        //"floor" platform
+        platforms.add(new Platform(0, 450, 10000, 50));
+        
         // read platforms from the level file
         try {
             InputStream inputStream = getClass().getResourceAsStream(levelFilePath);
