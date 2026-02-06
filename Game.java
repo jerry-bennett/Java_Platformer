@@ -17,9 +17,10 @@ public class Game extends JPanel implements KeyListener {
     private int levelWidth = 0;
     private boolean leftPressed = false;
     private boolean rightPressed = false;
-    private LevelEndRectangle levelEndRectangle = new LevelEndRectangle(450, 0, 50, 500);
+    private LevelEndRectangle levelEndRectangle = new LevelEndRectangle(750, 0, 50, 500);
     private Player player = new Player(50, 50, 50, 50); // adjust the values as needed
 
+    private Image backgroundImage;
     private List<Platform> platforms = new ArrayList<>();
 
     private int camX = 0;
@@ -148,6 +149,7 @@ public class Game extends JPanel implements KeyListener {
     // Keep camera from showing out-of-bounds (the "dead zone")
     if (camX < 0) camX = 0;
     if (camY < 0) camY = 0;
+
 }
     
     @Override
@@ -155,6 +157,10 @@ public class Game extends JPanel implements KeyListener {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
 
+        //background image for level 
+        if (backgroundImage != null) {
+            g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), null);
+        }
         g2d.translate(-camX, -camY); // Shift the world
 
         // draw platforms
