@@ -10,6 +10,8 @@ import java.util.Scanner;
 
 public class Game extends JPanel implements KeyListener {
     private boolean onGround = false;
+    private int coyoteCounter = 0;
+    private final int COYOTE_TIME_MAX = 10;
 
     private final int JUMP_SPEED = 15;
     private final int MOVE_SPEED = 5;
@@ -40,7 +42,7 @@ public class Game extends JPanel implements KeyListener {
 
         //"floor" platform
         platforms.add(new Platform(0, 450, 10000, 50));
-        
+
         // read platforms from the level file
         try {
             InputStream inputStream = getClass().getResourceAsStream(levelFilePath);
@@ -135,12 +137,16 @@ public class Game extends JPanel implements KeyListener {
     }
 
     // 4. Floor Boundary
-    if (player.getY() + player.getHeight() >= getHeight()) {
-        player.setY(getHeight() - player.getHeight());
-        player.setYVelocity(0);
+    onGround = checkOnGround();
+    if (onGround) {
+        coyoteCounter = COYOTE_TIME_MAX; // Refill the "grace period"
+    } else {
+        if (coyoteCounter > 0) coyoteCounter--; // Use up the grace period
     }
 
-    // 5. UPDATE onGround status at the very end
+    // 5. UPDATE onGround status at the very end and set camera
+    camX = player.getX() - (getWidth() / 2);
+    camY = player.getY() - (getHeight() / 2);
     onGround = checkOnGround();
 
     repaint();
@@ -195,9 +201,10 @@ public void keyPressed(KeyEvent e) {
     int keyCode = e.getKeyCode();
     switch (keyCode) {
         case KeyEvent.VK_W:
-        if(onGround) { 
+    if (coyoteCounter > 0) { // Can jump if on ground OR just walked off
             player.setYVelocity(-JUMP_SPEED);
             onGround = false; 
+            coyoteCounter = 0; // Prevent double jumping in mid-air
         }
         break;
         case KeyEvent.VK_A:
