@@ -6,6 +6,9 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 
 
 public class Game extends JPanel implements KeyListener {
@@ -35,35 +38,53 @@ public class Game extends JPanel implements KeyListener {
         setFocusable(true);
         setPreferredSize(new Dimension(500, 500));
         addKeyListener(this);
-        setFocusable(true);
-        addKeyListener(this);
+
         Timer timer = new Timer(5, e -> move());
         timer.start();
 
-        //"floor" platform
-        platforms.add(new Platform(0, 450, 10000, 50));
-
         // read platforms from the level file
-        try {
-            InputStream inputStream = getClass().getResourceAsStream(levelFilePath);
-            Scanner scanner = new Scanner(inputStream);
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
-                String[] tokens = line.split(",");
-                int x = Integer.parseInt(tokens[0]);
-                int y = Integer.parseInt(tokens[1]);
-                int width = Integer.parseInt(tokens[2]);
-                int height = Integer.parseInt(tokens[3]);
-                Platform platform = new Platform(x, y, width, height);
-                platforms.add(platform);
+        loadPlatformsFromJson(levelFilePath);
+    }
+
+    private void loadPlatformsFromJson(String path) {
+            platforms.clear(); // Clear old platforms
+            levelWidth = 0;
+            // Add the "permanent" floor once
+            platforms.add(new Platform(0, 450, 10000, 50));       
+
+            try (InputStream inputStream = getClass().getResourceAsStream(path)) {
+                if (inputStream == null) {
+                    System.err.println("Could not find file: " + path);
+                    return;
+                }
+
+            JSONTokener tokener = new JSONTokener(inputStream);
+            JSONObject root = new JSONObject(tokener);
+            JSONArray layers = root.getJSONArray("layers");
+
+            for (int i = 0; i < layers.length(); i++) {
+                JSONObject layer = layers.getJSONObject(i);
+                if (layer.getString("type").equals("objectgroup")) {
+                    JSONArray objects = layer.getJSONArray("objects");
+                    for (int j = 0; j < objects.length(); j++) {
+                        JSONObject obj = objects.getJSONObject(j);
+                        
+                        int x = obj.getInt("x");
+                        int y = obj.getInt("y");
+                        int width = obj.getInt("width");
+                        int height = obj.getInt("height");
+
+                        platforms.add(new Platform(x, y, width, height));
+                        if (x + width > levelWidth) levelWidth = x + width;
+                    }
+                }
             }
-            scanner.close();
-        } catch (NullPointerException e) {
-            System.err.println("Could not find file: " + levelFilePath);
-        }catch (Exception e) {
-            e.printStackTrace();
+    } catch (Exception e) {
+        System.err.println("Error parsing JSON at: " + path);
+        e.printStackTrace();
         }
     }
+
     
     private static boolean isPlayerCollidingWithLevelEnd(LevelEndRectangle levelEnd, Player player){
         var playerBounds = new Rectangle(player.getBounds());
@@ -72,41 +93,16 @@ public class Game extends JPanel implements KeyListener {
     }
 
     private void loadNewLevel(String newLevelFilePath) {
-        setFocusable(true);
-        setPreferredSize(new Dimension(500, 500));
-        removeKeyListener(this); // remove the previous key listener
-        Timer timer = new Timer(5, e -> move());
-        timer.start();
-    
-        try {
-            InputStream inputStream = getClass().getResourceAsStream(newLevelFilePath);
-            Scanner scanner = new Scanner(inputStream);
-            List<Platform> newPlatforms = new ArrayList<>();
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
-                String[] tokens = line.split(",");
-                int x = Integer.parseInt(tokens[0]);
-                int y = Integer.parseInt(tokens[1]);
-                int width = Integer.parseInt(tokens[2]);
-                int height = Integer.parseInt(tokens[3]);
-                int platformRightEdge = x + width;
-                if (platformRightEdge > levelWidth) levelWidth = platformRightEdge;
-                Platform platform = new Platform(x, y, width, height);
-                newPlatforms.add(platform);
-            }
-            scanner.close();
-            Game newGame = new Game(newLevelFilePath);
-            newGame.platforms = newPlatforms;
-            JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            frame.setContentPane(newGame);
-            frame.pack();
-            newGame.requestFocusInWindow(); // request focus for the new instance of the Game class
-            newGame.addKeyListener(newGame); // add KeyListener after removing the old one
-        } catch (NullPointerException e) {
-            System.err.println("Could not find file: " + newLevelFilePath);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        // Instead of making a new Game object, just reload the platforms!
+        loadPlatformsFromJson(newLevelFilePath);
+        
+        // Reset player position
+        player.setX(50);
+        player.setY(50);
+        player.setYVelocity(0);
+        player.setXVelocity(0);
+        
+        System.out.println("Level Loaded: " + newLevelFilePath);
     }
     
     private void move() {
@@ -181,14 +177,17 @@ public class Game extends JPanel implements KeyListener {
         // draw player
         g.setColor(Color.RED);
         g.fillRect(player.getX(), player.getY(), player.getWidth(), player.getHeight());
+        //"floor" platform
+        platforms.add(new Platform(0, 450, 10000, 50));
 
+        //levelEnd platform
         g.setColor(Color.GREEN);
         g.fillRect(levelEndRectangle.getX(), levelEndRectangle.getY(), levelEndRectangle.getWidth(), levelEndRectangle.getHeight());
 
         // logic for when the player reaches the level end
         if (isPlayerCollidingWithLevelEnd(levelEndRectangle, player)) {
             // Load a new level if the player collides with the level end rectangle
-            String newLevelFilePath = "/Levels/level2.csv";
+            String newLevelFilePath = "/Levels/level2.json";
             loadNewLevel(newLevelFilePath);
         }
 
@@ -292,7 +291,7 @@ public void keyTyped(KeyEvent e) {
         fileChooser.setCurrentDirectory(new File(System.getProperty("user.dir")));
         int result = fileChooser.showOpenDialog(null);
         if (result == JFileChooser.APPROVE_OPTION) {
-            Game game = new Game("/Levels/level1.csv");
+            Game game = new Game("/Levels/level1.json");
             JFrame frame = new JFrame("My Game");
             frame.add(game);
             frame.pack();

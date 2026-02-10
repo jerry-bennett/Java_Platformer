@@ -56,7 +56,7 @@ public class MainMenu extends JPanel {
 
     private void startNewGame() {
         // Create a new Game instance here instead
-        Game game = new Game("/Levels/level1.csv"); // Initialize the game when needed
+        Game game = new Game("/Levels/level1.json"); // Initialize the game when needed
         JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
         frame.remove(this);
         frame.add(game);
