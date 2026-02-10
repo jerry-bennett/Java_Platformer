@@ -5,7 +5,6 @@ import java.io.File;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
@@ -49,8 +48,6 @@ public class Game extends JPanel implements KeyListener {
     private void loadPlatformsFromJson(String path) {
             platforms.clear(); // Clear old platforms
             levelWidth = 0;
-            // Add the "permanent" floor once
-            platforms.add(new Platform(0, 450, 10000, 50));       
 
             try (InputStream inputStream = getClass().getResourceAsStream(path)) {
                 if (inputStream == null) {
@@ -74,8 +71,16 @@ public class Game extends JPanel implements KeyListener {
                         int width = obj.getInt("width");
                         int height = obj.getInt("height");
 
+                        // CHECK FOR GOAL
+                        if (obj.optString("name").equals("goal")) {
+                            levelEndRectangle = new LevelEndRectangle(x, y, width, height);
+                            continue; // Skip adding this to the platforms list
+                        }
+
+                        // Otherwise, it's a normal platform
                         platforms.add(new Platform(x, y, width, height));
                         if (x + width > levelWidth) levelWidth = x + width;
+
                     }
                 }
             }
@@ -177,8 +182,6 @@ public class Game extends JPanel implements KeyListener {
         // draw player
         g.setColor(Color.RED);
         g.fillRect(player.getX(), player.getY(), player.getWidth(), player.getHeight());
-        //"floor" platform
-        platforms.add(new Platform(0, 450, 10000, 50));
 
         //levelEnd platform
         g.setColor(Color.GREEN);

@@ -107,7 +107,7 @@
                 {
                  "height":21.2121212121212,
                  "id":25,
-                 "name":"",
+                 "name":"goal",
                  "rotation":0,
                  "type":"",
                  "visible":true,
@@ -121,7 +121,7 @@
          "x":0,
          "y":0
         }],
- "nextlayerid":5,
+ "nextlayerid":6,
  "nextobjectid":26,
  "orientation":"orthogonal",
  "renderorder":"right-down",
