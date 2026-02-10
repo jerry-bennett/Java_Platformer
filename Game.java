@@ -22,7 +22,7 @@ public class Game extends JPanel implements KeyListener {
     private int levelWidth = 0;
     private boolean leftPressed = false;
     private boolean rightPressed = false;
-    private LevelEndRectangle levelEndRectangle = new LevelEndRectangle(750, 0, 50, 500);
+    private LevelEndRectangle levelEndRectangle = new LevelEndRectangle(1000, 0, 50, 500);
     private Player player = new Player(50, 50, 50, 50); // adjust the values as needed
 
     private Image backgroundImage;
