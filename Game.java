@@ -30,6 +30,11 @@ public class Game extends JPanel implements KeyListener {
     private int camX = 0;
     private int camY = 0;
 
+    private int spawnX;
+    private int spawnY;
+
+    private int currentLevelNumber = 1;
+
     boolean top = false;
     boolean bottom = false;
 
@@ -70,7 +75,16 @@ public class Game extends JPanel implements KeyListener {
                         int y = obj.getInt("y");
                         int width = obj.getInt("width");
                         int height = obj.getInt("height");
-
+                        
+                        // CHECK FOR SPAWN POINT
+                        if (obj.optString("name").equalsIgnoreCase("spawn")) {
+                            spawnX = x;
+                            spawnY = y;
+                            player.setX(spawnX);
+                            player.setY(spawnY);
+                            System.out.println("Player spawned at: " + x + ", " + y);
+                            continue; // Don't make a platform out of the spawn point
+                        }
                         // CHECK FOR GOAL
                         if (obj.optString("name").equals("goal")) {
                             levelEndRectangle = new LevelEndRectangle(x, y, width, height);
@@ -98,12 +112,9 @@ public class Game extends JPanel implements KeyListener {
     }
 
     private void loadNewLevel(String newLevelFilePath) {
-        // Instead of making a new Game object, just reload the platforms!
         loadPlatformsFromJson(newLevelFilePath);
-        
-        // Reset player position
-        player.setX(50);
-        player.setY(50);
+    
+        // Reset velocities so the player doesn't "carry" momentum into the next level
         player.setYVelocity(0);
         player.setXVelocity(0);
         
@@ -189,9 +200,17 @@ public class Game extends JPanel implements KeyListener {
 
         // logic for when the player reaches the level end
         if (isPlayerCollidingWithLevelEnd(levelEndRectangle, player)) {
-            // Load a new level if the player collides with the level end rectangle
-            String newLevelFilePath = "/Levels/level2.json";
-            loadNewLevel(newLevelFilePath);
+            currentLevelNumber++; // Increment the level count
+            String nextLevelPath = "/Levels/level" + currentLevelNumber + ".json";
+            
+            // Check if the next level file actually exists in your resources
+            if (getClass().getResource(nextLevelPath) != null) {
+                loadNewLevel(nextLevelPath);
+            } else {
+                System.out.println("No more levels! Returning to Level 1.");
+                currentLevelNumber = 1;
+                loadNewLevel("/Levels/level1.json");
+            }
         }
 
         g2d.translate(camX, camY); // Reset translation
