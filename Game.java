@@ -1,6 +1,8 @@
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -24,7 +26,9 @@ public class Game extends JPanel implements KeyListener {
     private LevelEndRectangle levelEndRectangle = new LevelEndRectangle(1000, 0, 50, 500);
     private Player player = new Player(50, 50, 50, 50); // adjust the values as needed
 
-    private Image backgroundImage;
+    private BufferedImage levelBackground; // Distant, blurred, parallaxed
+    private BufferedImage levelForeground; // Close, sharp, moves 1:1 with player
+
     private List<Platform> platforms = new ArrayList<>();
 
     private int camX = 0;
@@ -32,8 +36,6 @@ public class Game extends JPanel implements KeyListener {
 
     private int spawnX;
     private int spawnY;
-
-    private int currentLevelNumber = 1;
 
     boolean top = false;
     boolean bottom = false;
@@ -48,6 +50,16 @@ public class Game extends JPanel implements KeyListener {
 
         // read platforms from the level file
         loadPlatformsFromJson(levelFilePath);
+    }
+
+    private BufferedImage blurImage(BufferedImage src) {
+        float[] matrix = {
+            1/16f, 2/16f, 1/16f,
+            2/16f, 4/16f, 2/16f,
+            1/16f, 2/16f, 1/16f
+        };
+        java.awt.image.ConvolveOp op = new java.awt.image.ConvolveOp(new java.awt.image.Kernel(3, 3, matrix));
+        return op.filter(src, null);
     }
 
     private void loadPlatformsFromJson(String path) {
@@ -66,6 +78,31 @@ public class Game extends JPanel implements KeyListener {
 
             for (int i = 0; i < layers.length(); i++) {
                 JSONObject layer = layers.getJSONObject(i);
+                String layerType = layer.getString("type");
+
+            // 1. HANDLE IMAGE LAYER
+            if (layerType.equals("imagelayer")) {
+                String layerName = layer.getString("name").toLowerCase(); // Get the Tiled layer name
+                String imagePath = layer.getString("image");
+                File file = new File(imagePath);
+                String fileName = file.getName();
+
+                try {
+                    //read background image layer
+                    BufferedImage img = ImageIO.read(getClass().getResourceAsStream("/Levels/images/" + fileName));
+                    if (layerName.contains("background")) {
+                        // Apply a blur to the background only
+                        levelBackground = blurImage(img);
+                    } else {
+                        // Foreground stays sharp
+                        levelForeground = img;
+                    }
+                } catch (Exception e) {
+                    System.err.println("Could not load background image: " + fileName);
+                }
+            }
+
+                // 2. HANDLE OBJECT LAYER
                 if (layer.getString("type").equals("objectgroup")) {
                     JSONArray objects = layer.getJSONArray("objects");
                     for (int j = 0; j < objects.length(); j++) {
@@ -169,7 +206,7 @@ public class Game extends JPanel implements KeyListener {
 
     // Keep camera from showing out-of-bounds (the "dead zone")
     if (camX < 0) camX = 0;
-    if (camY < 0) camY = 0;
+    //if (camY < 0) camY = 0;
 
 }
     
@@ -178,42 +215,37 @@ public class Game extends JPanel implements KeyListener {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
 
-        //background image for level 
-        if (backgroundImage != null) {
-            g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), null);
+        // --- 1. DRAW DISTANT BACKGROUND (Parallax) ---
+        if (levelBackground != null) {
+            java.awt.geom.AffineTransform oldTransform = g2d.getTransform();
+            
+            // This slides slower to create depth
+            int parallaxX = (int) (camX * 0.5); 
+            int parallaxY = (int) (camY * 0.5); 
+            g2d.translate(-parallaxX, -parallaxY);
+            
+            g.drawImage(levelBackground, 0, 0, null);
+            
+            g2d.setTransform(oldTransform);
         }
-        g2d.translate(-camX, -camY); // Shift the world
 
-        // draw platforms
-        g.setColor(Color.BLUE);
-        for (Platform platform : platforms) {
-            g.fillRect(platform.getX(), platform.getY(), platform.getWidth(), platform.getHeight());
+        // --- 2. DRAW THE PHYSICAL WORLD (Full Speed) ---
+        g2d.translate(-camX, -camY);
+
+        // 3. DRAW FOREGROUND
+        if (levelForeground != null) {
+            g.drawImage(levelForeground, 0, 0, null);
         }
 
-        // draw player
+        // Draw player
         g.setColor(Color.RED);
         g.fillRect(player.getX(), player.getY(), player.getWidth(), player.getHeight());
 
-        //levelEnd platform
+        // Draw level end
         g.setColor(Color.GREEN);
         g.fillRect(levelEndRectangle.getX(), levelEndRectangle.getY(), levelEndRectangle.getWidth(), levelEndRectangle.getHeight());
 
-        // logic for when the player reaches the level end
-        if (isPlayerCollidingWithLevelEnd(levelEndRectangle, player)) {
-            currentLevelNumber++; // Increment the level count
-            String nextLevelPath = "/Levels/level" + currentLevelNumber + ".json";
-            
-            // Check if the next level file actually exists in your resources
-            if (getClass().getResource(nextLevelPath) != null) {
-                loadNewLevel(nextLevelPath);
-            } else {
-                System.out.println("No more levels! Returning to Level 1.");
-                currentLevelNumber = 1;
-                loadNewLevel("/Levels/level1.json");
-            }
-        }
-
-        g2d.translate(camX, camY); // Reset translation
+        g2d.translate(camX, camY); // Reset for next frame
     }
 
     // WASD controls, key pressed
