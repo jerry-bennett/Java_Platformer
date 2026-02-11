@@ -31,6 +31,8 @@ public class Game extends JPanel implements KeyListener {
 
     private List<Platform> platforms = new ArrayList<>();
 
+    
+
     private int camX = 0;
     private int camY = 0;
 
@@ -89,13 +91,14 @@ public class Game extends JPanel implements KeyListener {
 
                 try {
                     //read background image layer
-                    BufferedImage img = ImageIO.read(getClass().getResourceAsStream("/Levels/images/" + fileName));
+                    BufferedImage img = ImageIO.read(getClass().getResourceAsStream("/Levels/level1/" + fileName));
                     if (layerName.contains("background")) {
                         // Apply a blur to the background only
                         levelBackground = blurImage(img);
                     } else {
                         // Foreground stays sharp
                         levelForeground = img;
+                        System.out.println("Loaded Foreground: " + fileName);
                     }
                 } catch (Exception e) {
                     System.err.println("Could not load background image: " + fileName);

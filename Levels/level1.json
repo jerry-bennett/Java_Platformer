@@ -35,7 +35,7 @@
         }, 
         {
          "id":6,
-         "image":"images\/level1.jpg",
+         "image":"level1\/sky_bg.jpg",
          "imageheight":640,
          "imagewidth":960,
          "name":"background",
@@ -47,7 +47,7 @@
         }, 
         {
          "id":7,
-         "image":"images\/level1.jpg",
+         "image":"level1\/platforms_fg.png",
          "imageheight":640,
          "imagewidth":960,
          "name":"foreground",
