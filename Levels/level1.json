@@ -65,7 +65,7 @@
                 {
                  "height":135.515151515152,
                  "id":19,
-                 "name":"",
+                 "name":"death",
                  "rotation":0,
                  "type":"",
                  "visible":true,
@@ -116,6 +116,39 @@
                  "width":51.5151515151515,
                  "x":177.969696969697,
                  "y":37.969696969697
+                }, 
+                {
+                 "height":55.9545,
+                 "id":31,
+                 "name":"",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":149.515,
+                 "x":342.924318181818,
+                 "y":369.393962121212
+                }, 
+                {
+                 "height":56.9545,
+                 "id":32,
+                 "name":"",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":150.015,
+                 "x":558.7425,
+                 "y":311.52275
+                }, 
+                {
+                 "height":67.9545,
+                 "id":33,
+                 "name":"",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":181.015,
+                 "x":853.9925,
+                 "y":426.02275
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -157,7 +190,7 @@
          "y":0
         }],
  "nextlayerid":9,
- "nextobjectid":31,
+ "nextobjectid":34,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",

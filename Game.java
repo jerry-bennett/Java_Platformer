@@ -36,6 +36,8 @@ public class Game extends JPanel implements KeyListener {
     private int camX = 0;
     private int camY = 0;
 
+    private List<Rectangle> deathZones = new ArrayList<>();
+
     private int spawnX;
     private int spawnY;
 
@@ -116,6 +118,11 @@ public class Game extends JPanel implements KeyListener {
                         int y = obj.getInt("y");
                         int width = obj.getInt("width");
                         int height = obj.getInt("height");
+
+                        if (obj.optString("name").equalsIgnoreCase("death")) {
+                            deathZones.add(new Rectangle(x, y, width, height));
+                            continue; 
+                        }
                         
                         // CHECK FOR SPAWN POINT
                         if (obj.optString("name").equalsIgnoreCase("spawn")) {
@@ -172,6 +179,7 @@ public class Game extends JPanel implements KeyListener {
     private void loadNewLevel(String newLevelFilePath) {
     // Wipe the old data
     platforms.clear();
+    deathZones.clear();
     levelBackground = null;
     levelForeground = null;
 
@@ -234,6 +242,19 @@ public class Game extends JPanel implements KeyListener {
         advanceToNextLevel();
     }
 
+    // 6. CHECK FOR DEATH ZONES
+    for (Rectangle zone : deathZones) {
+        if (player.getBounds().intersects(zone)) {
+            System.out.println("Player fell into a death zone!");
+            respawnPlayer();
+            break; 
+        }
+    }
+
+    if (player.getY() > 2000) { // Safety net if they miss a death zone
+        respawnPlayer();
+    }
+
     repaint();
 
     // Center the camera on the player
@@ -244,7 +265,7 @@ public class Game extends JPanel implements KeyListener {
     if (camX < 0) camX = 0;
     //if (camY < 0) camY = 0;
 
-}
+    }
     
     @Override
     public void paintComponent(Graphics g) {
@@ -284,7 +305,14 @@ public class Game extends JPanel implements KeyListener {
         g2d.translate(camX, camY); // Reset for next frame
     }
 
-    // WASD controls, key pressed
+    private void respawnPlayer() {
+        player.setX(spawnX);
+        player.setY(spawnY);
+        player.setXVelocity(0);
+        player.setYVelocity(0);
+    }
+
+// WASD controls, key pressed
 @Override
 public void keyPressed(KeyEvent e) {
     int keyCode = e.getKeyCode();
