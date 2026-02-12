@@ -38,6 +38,8 @@ public class Game extends JPanel implements KeyListener {
 
     private List<Rectangle> deathZones = new ArrayList<>();
 
+    private int levelHeight = 0;
+
     private int spawnX;
     private int spawnY;
 
@@ -142,6 +144,7 @@ public class Game extends JPanel implements KeyListener {
                         // Otherwise, it's a normal platform
                         platforms.add(new Platform(x, y, width, height));
                         if (x + width > levelWidth) levelWidth = x + width;
+                        if (y + height > levelHeight) levelHeight = y + height;
 
                     }
                 }
@@ -257,9 +260,24 @@ public class Game extends JPanel implements KeyListener {
 
     repaint();
 
-    // Center the camera on the player
-    camX = player.getX() - (getWidth() / 2);
-    camY = player.getY() - (getHeight() / 2);
+    // 1. Calculate ideal center
+    int targetCamX = player.getX() - (getWidth() / 2);
+    int targetCamY = player.getY() - (getHeight() / 2);
+
+    // 2. Clamp X (Horizontal bounds)
+    if (targetCamX < 0) targetCamX = 0;
+    if (targetCamX > levelWidth - getWidth()) targetCamX = levelWidth - getWidth();
+
+    // 3. Clamp Y (Vertical bounds)
+    // Stops camera from going above the sky (0) 
+    if (targetCamY < 0) targetCamY = 0; 
+    // Stops camera from going below the floor
+    if (levelHeight > getHeight() && targetCamY > levelHeight - getHeight()) {
+        targetCamY = levelHeight - getHeight();
+    }
+
+    camX = targetCamX;
+    camY = targetCamY;
 
     // Keep camera from showing out-of-bounds (the "dead zone")
     if (camX < 0) camX = 0;
