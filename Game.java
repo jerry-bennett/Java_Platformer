@@ -40,6 +40,10 @@ public class Game extends JPanel implements KeyListener {
 
     private int levelHeight = 0;
 
+    private float cameraSmoothing = 0.05f; // Adjust this for more or less "weight"
+
+    private int bgOffsetY = 0;
+
     private int spawnX;
     private int spawnY;
 
@@ -93,6 +97,10 @@ public class Game extends JPanel implements KeyListener {
                 File file = new File(imagePath);
                 String fileName = file.getName();
 
+                // Read the offsets from the JSON (Tiled uses these keys)
+                int offX = layer.optInt("offsetx", 0);
+                int offY = layer.optInt("offsety", 0);
+
                 try {
                     //read background image layer
                     String imageResourcePath = "/Levels/level" + currentLevelNumber + "/" + fileName;
@@ -100,6 +108,7 @@ public class Game extends JPanel implements KeyListener {
                     if (layerName.contains("background")) {
                         // Apply a blur to the background only
                         levelBackground = blurImage(img);
+                         bgOffsetY = offY;
                     } else {
                         // Foreground stays sharp
                         levelForeground = img;
@@ -258,30 +267,29 @@ public class Game extends JPanel implements KeyListener {
         respawnPlayer();
     }
 
-    repaint();
+    // 1. Calculate the IDEAL target (centered on player)
+    int targetX = player.getX() - (getWidth() / 2);
+    int targetY = player.getY() - (getHeight() / 2);
 
-    // 1. Calculate ideal center
-    int targetCamX = player.getX() - (getWidth() / 2);
-    int targetCamY = player.getY() - (getHeight() / 2);
+    // 2. Apply Vertical and Horizontal Clamping (from our last step)
+    if (targetX < 0) targetX = 0;
+    if (targetX > levelWidth - getWidth()) targetX = levelWidth - getWidth();
 
-    // 2. Clamp X (Horizontal bounds)
-    if (targetCamX < 0) targetCamX = 0;
-    if (targetCamX > levelWidth - getWidth()) targetCamX = levelWidth - getWidth();
-
-    // 3. Clamp Y (Vertical bounds)
-    // Stops camera from going above the sky (0) 
-    if (targetCamY < 0) targetCamY = 0; 
-    // Stops camera from going below the floor
-    if (levelHeight > getHeight() && targetCamY > levelHeight - getHeight()) {
-        targetCamY = levelHeight - getHeight();
+    if (targetY < 0) targetY = 0;
+    if (levelHeight > getHeight() && targetY > levelHeight - getHeight()) {
+        targetY = levelHeight - getHeight();
     }
 
-    camX = targetCamX;
-    camY = targetCamY;
+    // 3. THE SMOOTHING (LERP)
+    // We move the camera a small fraction of the distance toward the target
+    camX += (targetX - camX) * cameraSmoothing;
+    camY += (targetY - camY) * cameraSmoothing;
 
     // Keep camera from showing out-of-bounds (the "dead zone")
     if (camX < 0) camX = 0;
     //if (camY < 0) camY = 0;
+    
+    repaint();
 
     }
     
@@ -299,7 +307,7 @@ public class Game extends JPanel implements KeyListener {
             int parallaxY = (int) (camY * 0.5); 
             g2d.translate(-parallaxX, -parallaxY);
             
-            g.drawImage(levelBackground, 0, 0, null);
+            g.drawImage(levelBackground, 0, bgOffsetY, null);
             
             g2d.setTransform(oldTransform);
         }
