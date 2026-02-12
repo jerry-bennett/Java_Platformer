@@ -2,17 +2,25 @@ import java.awt.Rectangle;
 
 public class Enemy {
     private int x, y, width, height;
-    private int xVelocity = 2;
+    private int xVelocity = 3;
     private int yVelocity = 0;
     private boolean movingRight = true;
+    private int startX, startY;
 
     public Enemy(int x, int y, int width, int height) {
         this.x = x;
         this.y = y;
+        this.startX = x;
+        this.startY = y;
         this.width = width;
         this.height = height;
     }
 
+    public void respawn() {
+        this.x = startX;
+        this.y = startY;
+        this.yVelocity = 0;
+    }
     // --- GETTERS AND SETTERS ---
     public int getX() { return x; }
     public void setX(int x) { this.x = x; }
@@ -30,7 +38,7 @@ public class Enemy {
     public Rectangle getBounds() { return new Rectangle(x, y, width, height); }
     
     public Rectangle getEdgeSensor() {
-       int sensorX = movingRight ? x + width + 20 : x - 30;
-        return new Rectangle(sensorX, y + height + 5, 20, 10);
+       int sensorX = movingRight ? x + width : x - 10;
+        return new Rectangle(sensorX, y + height + 2, 10, 10);
     }
 }

@@ -305,62 +305,97 @@ public class Game extends JPanel implements KeyListener {
 
     private void updateEnemies() {
         for (Enemy e : enemies) {
-            // 1. Apply Gravity
+            // 1. Gravity
             e.setYVelocity(e.getYVelocity() + GRAVITY);
             e.setY(e.getY() + e.getYVelocity());
 
-            // 2. Floor Collision (Same logic as player)
+            // 2. Vertical Collision (Floor)
             boolean onPlatform = false;
             for (Platform p : platforms) {
                 if (e.getBounds().intersects(p.getBounds())) {
-                    e.setY(p.getY() - e.getHeight());
-                    e.setYVelocity(0);
-                    onPlatform = true;
+                    if (e.getYVelocity() > 0) {
+                        e.setY(p.getY() - e.getHeight());
+                        e.setYVelocity(0);
+                        onPlatform = true;
+                    }
                 }
             }
 
-            // 3. Edge Detection (The "Don't Fall" logic)
-            Rectangle sensor = e.getEdgeSensor();
-            boolean groundAhead = false;
+            // 3. Horizontal Movement
+            int speed = e.isMovingRight() ? 3 : -3;
+            e.setX(e.getX() + speed);
+
+            // 4. Wall & Boundary Collision (Bounce)
             for (Platform p : platforms) {
-                if (sensor.intersects(p.getBounds())) {
-                    groundAhead = true;
+                if (e.getBounds().intersects(p.getBounds())) {
+                    e.setMovingRight(!e.isMovingRight());
+                    // Nudge out of the wall to prevent sticking
+                    e.setX(e.getX() + (e.isMovingRight() ? 5 : -5)); 
+                }
+            }
+
+            // Level Bounds
+            if (e.getX() < 0 || e.getX() + e.getWidth() > levelWidth) {
+                e.setMovingRight(!e.isMovingRight());
+            }
+
+            // 5. Jump Logic (Smart Edge Detection)
+            Rectangle edgeSensor = e.getEdgeSensor();
+            boolean groundImmediatelyAhead = false;
+            for (Platform p : platforms) {
+                if (edgeSensor.intersects(p.getBounds())) {
+                    groundImmediatelyAhead = true;
                     break;
                 }
             }
 
-            if (!groundAhead && onPlatform) {
-                // Option A: Turn around
-                e.setYVelocity(-15);   
-            }
-            
-            for (Platform p : platforms) {
-                if (e.getBounds().intersects(p.getBounds())) {
-                    // Simple horizontal bounce if they hit the side of a platform
-                    e.setMovingRight(!e.isMovingRight());
-                    e.setX(e.getX() + (e.isMovingRight() ? 5 : -5)); // Tiny nudge out of the wall
+            // 6. CHECK FOR ENEMY DEATH (Respawn)
+            boolean hitDeathZone = false;
+            for (Rectangle zone : deathZones) {
+                if (e.getBounds().intersects(zone)) {
+                    hitDeathZone = true;
+                    break;
                 }
             }
-            
-            // 4. Horizontal Move
-            int speed = e.isMovingRight() ? 2 : -2;
-            e.setX(e.getX() + speed);
 
-            //level boundary check
-            if (e.getX() <= 0) {
-                e.setX(0);
-                e.setMovingRight(true);
-            } else if (e.getX() + e.getWidth() >= levelWidth) {
-                e.setX(levelWidth - e.getWidth());
-                e.setMovingRight(false);
+            if (hitDeathZone || e.getY() > 2000) {
+                e.respawn();
             }
 
-            // 5. Safety Net
-            if (e.getY() > levelHeight + 100) {
-                // You could either remove them from the list or reset them
-                // For now, let's just teleport them back to a known Y level
-                e.setY(0); 
-                e.setYVelocity(0);
+            if (!groundImmediatelyAhead && onPlatform) {
+                // 1. Calculate how far we want to look (e.g., 200 pixels)
+                int reachDistance = 100; 
+                
+                // 2. Define the sensor area based on direction
+                int sensorX = e.isMovingRight() ? (e.getX() + e.getWidth()) : (e.getX() - reachDistance);
+                
+                // 3. Create the sensor (Width is reachDistance, Height scans down to levelHeight)
+                Rectangle jumpReachSensor = new Rectangle(
+                    sensorX, 
+                    e.getY(), 
+                    reachDistance, 
+                    300 
+                );
+
+                boolean landingSpotFound = false;
+                for (Platform p : platforms) {
+                    if (jumpReachSensor.intersects(p.getBounds())) {
+                        landingSpotFound = true;
+                        break;
+                    }
+                }
+
+                if (landingSpotFound) {
+                    // Safe to jump!
+                    e.setYVelocity(-16); 
+                    int jumpPush = e.isMovingRight() ? 5 : -5; 
+                    e.setX(e.getX() + jumpPush);
+                } else {
+                    // Nothing found within 200px. Turn back!
+                    e.setMovingRight(!e.isMovingRight());
+                    // Nudge to prevent getting stuck in the "no ground" loop
+                    e.setX(e.getX() + (e.isMovingRight() ? 5 : -5));
+                }
             }
         }
     }
