@@ -31,7 +31,7 @@ public class Game extends JPanel implements KeyListener {
 
     private List<Platform> platforms = new ArrayList<>();
 
-    
+    private int currentLevelNumber = 1;
 
     private int camX = 0;
     private int camY = 0;
@@ -91,7 +91,8 @@ public class Game extends JPanel implements KeyListener {
 
                 try {
                     //read background image layer
-                    BufferedImage img = ImageIO.read(getClass().getResourceAsStream("/Levels/level1/" + fileName));
+                    String imageResourcePath = "/Levels/level" + currentLevelNumber + "/" + fileName;
+                    BufferedImage img = ImageIO.read(getClass().getResourceAsStream(imageResourcePath));
                     if (layerName.contains("background")) {
                         // Apply a blur to the background only
                         levelBackground = blurImage(img);
@@ -144,22 +145,49 @@ public class Game extends JPanel implements KeyListener {
         }
     }
 
+    private void advanceToNextLevel() {
+        currentLevelNumber++;
+        String nextLevelPath = "/Levels/level" + currentLevelNumber + ".json";
+        
+        // Check if the next level file actually exists
+        if (getClass().getResource(nextLevelPath) != null) {
+            loadNewLevel(nextLevelPath);
+        } else {
+            // If there's no level3.json, you've beaten the game!
+            System.out.println("No more levels! You win!");
+            showWinScreen(); 
+        }
+    }
+
+    private void showWinScreen() {
+        JOptionPane.showMessageDialog(this, "Congratulations! You've cleared all levels!");
+        System.exit(0);
+    }
     
-    private static boolean isPlayerCollidingWithLevelEnd(LevelEndRectangle levelEnd, Player player){
-        var playerBounds = new Rectangle(player.getBounds());
-        var levelEndBounds = new Rectangle(levelEnd.getBounds());
-        return playerBounds.intersects(levelEndBounds);
+    private static boolean isPlayerCollidingWithLevelEnd(LevelEndRectangle levelEnd, Player player) {
+        if (levelEnd == null) return false;
+        return player.getBounds().intersects(levelEnd.getBounds());
     }
 
     private void loadNewLevel(String newLevelFilePath) {
-        loadPlatformsFromJson(newLevelFilePath);
+    // Wipe the old data
+    platforms.clear();
+    levelBackground = null;
+    levelForeground = null;
+
+    // Load the new JSON and images
+    loadPlatformsFromJson(newLevelFilePath);
+
+    // Reset player physics
+    player.setYVelocity(0);
+    player.setXVelocity(0);
     
-        // Reset velocities so the player doesn't "carry" momentum into the next level
-        player.setYVelocity(0);
-        player.setXVelocity(0);
-        
-        System.out.println("Level Loaded: " + newLevelFilePath);
-    }
+    // Reset camera to spawn point to prevent "flash" of previous level's position
+    camX = player.getX() - (getWidth() / 2);
+    camY = player.getY() - (getHeight() / 2);
+
+    System.out.println("Level Loaded: " + newLevelFilePath);
+}
     
     private void move() {
     // 1. Handle X Movement
@@ -200,6 +228,11 @@ public class Game extends JPanel implements KeyListener {
     camX = player.getX() - (getWidth() / 2);
     camY = player.getY() - (getHeight() / 2);
     onGround = checkOnGround();
+
+    if (isPlayerCollidingWithLevelEnd(levelEndRectangle, player)) {
+        System.out.println("Goal reached!");
+        advanceToNextLevel();
+    }
 
     repaint();
 
