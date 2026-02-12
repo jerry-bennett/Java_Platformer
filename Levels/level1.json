@@ -204,6 +204,17 @@
                  "width":192,
                  "x":1120,
                  "y":416
+                }, 
+                {
+                 "height":64,
+                 "id":37,
+                 "name":"enemy",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":64,
+                 "x":1696,
+                 "y":224
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -245,7 +256,7 @@
          "y":0
         }],
  "nextlayerid":9,
- "nextobjectid":37,
+ "nextobjectid":38,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",

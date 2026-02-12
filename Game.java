@@ -37,11 +37,13 @@ public class Game extends JPanel implements KeyListener {
     private int camY = 0;
 
     private List<Rectangle> deathZones = new ArrayList<>();
+    private List<Enemy> enemies = new ArrayList<>();
 
     private int levelHeight = 0;
 
     private float cameraSmoothing = 0.05f; // Adjust this for more or less "weight"
 
+    private int bgOffsetX = 0;
     private int bgOffsetY = 0;
 
     private int spawnX;
@@ -108,7 +110,8 @@ public class Game extends JPanel implements KeyListener {
                     if (layerName.contains("background")) {
                         // Apply a blur to the background only
                         levelBackground = blurImage(img);
-                         bgOffsetY = offY;
+                        bgOffsetY = offY;
+                        bgOffsetX = offX;
                     } else {
                         // Foreground stays sharp
                         levelForeground = img;
@@ -133,6 +136,11 @@ public class Game extends JPanel implements KeyListener {
                         if (obj.optString("name").equalsIgnoreCase("death")) {
                             deathZones.add(new Rectangle(x, y, width, height));
                             continue; 
+                        }
+
+                        if (obj.optString("name").equalsIgnoreCase("enemy")) {
+                            enemies.add(new Enemy(x, y, width, height));
+                            continue;
                         }
                         
                         // CHECK FOR SPAWN POINT
@@ -208,89 +216,153 @@ public class Game extends JPanel implements KeyListener {
 
     System.out.println("Level Loaded: " + newLevelFilePath);
 }
+
     
     private void move() {
-    // 1. Handle X Movement
-    player.setX(player.getX() + player.getXVelocity());
-    for (Platform platform : platforms) {
-        if (player.getBounds().intersects(platform.getBounds())) {
-            if (player.getXVelocity() > 0) player.setX(platform.getX() - player.getWidth());
-            else if (player.getXVelocity() < 0) player.setX(platform.getX() + platform.getWidth());
-        }
-    }
-
-    // 2. Handle Y Movement & Gravity
-    player.setYVelocity(player.getYVelocity() + GRAVITY);
-    player.setY(player.getY() + player.getYVelocity());
-
-    // 3. Collision Resolution
-    for (Platform platform : platforms) {
-        if (player.getBounds().intersects(platform.getBounds())) {
-            if (player.getYVelocity() > 0) { // Falling Down
-                player.setY(platform.getY() - player.getHeight());
-                player.setYVelocity(0);
-            } else if (player.getYVelocity() < 0) { // Hitting ceiling
-                player.setY(platform.getY() + platform.getHeight());
-                player.setYVelocity(0);
+        updateEnemies();
+        // 1. Handle X Movement
+        player.setX(player.getX() + player.getXVelocity());
+        for (Platform platform : platforms) {
+            if (player.getBounds().intersects(platform.getBounds())) {
+                if (player.getXVelocity() > 0) player.setX(platform.getX() - player.getWidth());
+                else if (player.getXVelocity() < 0) player.setX(platform.getX() + platform.getWidth());
             }
         }
-    }
 
-    // 4. Floor Boundary
-    onGround = checkOnGround();
-    if (onGround) {
-        coyoteCounter = COYOTE_TIME_MAX; // Refill the "grace period"
-    } else {
-        if (coyoteCounter > 0) coyoteCounter--; // Use up the grace period
-    }
+        // 2. Handle Y Movement & Gravity
+        player.setYVelocity(player.getYVelocity() + GRAVITY);
+        player.setY(player.getY() + player.getYVelocity());
 
-    // 5. UPDATE onGround status at the very end and set camera
-    camX = player.getX() - (getWidth() / 2);
-    camY = player.getY() - (getHeight() / 2);
-    onGround = checkOnGround();
-
-    if (isPlayerCollidingWithLevelEnd(levelEndRectangle, player)) {
-        System.out.println("Goal reached!");
-        advanceToNextLevel();
-    }
-
-    // 6. CHECK FOR DEATH ZONES
-    for (Rectangle zone : deathZones) {
-        if (player.getBounds().intersects(zone)) {
-            System.out.println("Player fell into a death zone!");
-            respawnPlayer();
-            break; 
+        // 3. Collision Resolution
+        for (Platform platform : platforms) {
+            if (player.getBounds().intersects(platform.getBounds())) {
+                if (player.getYVelocity() > 0) { // Falling Down
+                    player.setY(platform.getY() - player.getHeight());
+                    player.setYVelocity(0);
+                } else if (player.getYVelocity() < 0) { // Hitting ceiling
+                    player.setY(platform.getY() + platform.getHeight());
+                    player.setYVelocity(0);
+                }
+            }
         }
+
+        // 4. Floor Boundary
+        onGround = checkOnGround();
+        if (onGround) {
+            coyoteCounter = COYOTE_TIME_MAX; // Refill the "grace period"
+        } else {
+            if (coyoteCounter > 0) coyoteCounter--; // Use up the grace period
+        }
+
+        // 5. UPDATE onGround status at the very end and set camera
+        camX = player.getX() - (getWidth() / 2);
+        camY = player.getY() - (getHeight() / 2);
+        onGround = checkOnGround();
+
+        if (isPlayerCollidingWithLevelEnd(levelEndRectangle, player)) {
+            System.out.println("Goal reached!");
+            advanceToNextLevel();
+        }
+
+        // 6. CHECK FOR DEATH ZONES
+        for (Rectangle zone : deathZones) {
+            if (player.getBounds().intersects(zone)) {
+                System.out.println("Player fell into a death zone!");
+                respawnPlayer();
+                break; 
+            }
+        }
+
+        if (player.getY() > 2000) { // Safety net if they miss a death zone
+            respawnPlayer();
+        }
+
+        // 1. Calculate the IDEAL target (centered on player)
+        int targetX = player.getX() - (getWidth() / 2);
+        int targetY = player.getY() - (getHeight() / 2);
+
+        // 2. Apply Vertical and Horizontal Clamping (from our last step)
+        if (targetX < 0) targetX = 0;
+        if (targetX > levelWidth - getWidth()) targetX = levelWidth - getWidth();
+
+        if (targetY < 0) targetY = 0;
+        if (levelHeight > getHeight() && targetY > levelHeight - getHeight()) {
+            targetY = levelHeight - getHeight();
+        }
+
+        // 3. THE SMOOTHING (LERP)
+        // We move the camera a small fraction of the distance toward the target
+        camX += (targetX - camX) * cameraSmoothing;
+        camY += (targetY - camY) * cameraSmoothing;
+
+        // Keep camera from showing out-of-bounds (the "dead zone")
+        if (camX < 0) camX = 0;
+        //if (camY < 0) camY = 0;
+        
+        repaint();
+
     }
 
-    if (player.getY() > 2000) { // Safety net if they miss a death zone
-        respawnPlayer();
-    }
+    private void updateEnemies() {
+        for (Enemy e : enemies) {
+            // 1. Apply Gravity
+            e.setYVelocity(e.getYVelocity() + GRAVITY);
+            e.setY(e.getY() + e.getYVelocity());
 
-    // 1. Calculate the IDEAL target (centered on player)
-    int targetX = player.getX() - (getWidth() / 2);
-    int targetY = player.getY() - (getHeight() / 2);
+            // 2. Floor Collision (Same logic as player)
+            boolean onPlatform = false;
+            for (Platform p : platforms) {
+                if (e.getBounds().intersects(p.getBounds())) {
+                    e.setY(p.getY() - e.getHeight());
+                    e.setYVelocity(0);
+                    onPlatform = true;
+                }
+            }
 
-    // 2. Apply Vertical and Horizontal Clamping (from our last step)
-    if (targetX < 0) targetX = 0;
-    if (targetX > levelWidth - getWidth()) targetX = levelWidth - getWidth();
+            // 3. Edge Detection (The "Don't Fall" logic)
+            Rectangle sensor = e.getEdgeSensor();
+            boolean groundAhead = false;
+            for (Platform p : platforms) {
+                if (sensor.intersects(p.getBounds())) {
+                    groundAhead = true;
+                    break;
+                }
+            }
 
-    if (targetY < 0) targetY = 0;
-    if (levelHeight > getHeight() && targetY > levelHeight - getHeight()) {
-        targetY = levelHeight - getHeight();
-    }
+            if (!groundAhead && onPlatform) {
+                // Option A: Turn around
+                e.setYVelocity(-15);   
+            }
+            
+            for (Platform p : platforms) {
+                if (e.getBounds().intersects(p.getBounds())) {
+                    // Simple horizontal bounce if they hit the side of a platform
+                    e.setMovingRight(!e.isMovingRight());
+                    e.setX(e.getX() + (e.isMovingRight() ? 5 : -5)); // Tiny nudge out of the wall
+                }
+            }
+            
+            // 4. Horizontal Move
+            int speed = e.isMovingRight() ? 2 : -2;
+            e.setX(e.getX() + speed);
 
-    // 3. THE SMOOTHING (LERP)
-    // We move the camera a small fraction of the distance toward the target
-    camX += (targetX - camX) * cameraSmoothing;
-    camY += (targetY - camY) * cameraSmoothing;
+            //level boundary check
+            if (e.getX() <= 0) {
+                e.setX(0);
+                e.setMovingRight(true);
+            } else if (e.getX() + e.getWidth() >= levelWidth) {
+                e.setX(levelWidth - e.getWidth());
+                e.setMovingRight(false);
+            }
 
-    // Keep camera from showing out-of-bounds (the "dead zone")
-    if (camX < 0) camX = 0;
-    //if (camY < 0) camY = 0;
-    
-    repaint();
-
+            // 5. Safety Net
+            if (e.getY() > levelHeight + 100) {
+                // You could either remove them from the list or reset them
+                // For now, let's just teleport them back to a known Y level
+                e.setY(0); 
+                e.setYVelocity(0);
+            }
+        }
     }
     
     @Override
@@ -307,7 +379,7 @@ public class Game extends JPanel implements KeyListener {
             int parallaxY = (int) (camY * 0.5); 
             g2d.translate(-parallaxX, -parallaxY);
             
-            g.drawImage(levelBackground, 0, bgOffsetY, null);
+            g.drawImage(levelBackground, bgOffsetX, bgOffsetY, null);
             
             g2d.setTransform(oldTransform);
         }
@@ -323,6 +395,12 @@ public class Game extends JPanel implements KeyListener {
         // Draw player
         g.setColor(Color.RED);
         g.fillRect(player.getX(), player.getY(), player.getWidth(), player.getHeight());
+
+        // Draw enemies
+        g.setColor(Color.ORANGE);
+        for (Enemy e : enemies) {
+            g.fillRect(e.getX(), e.getY(), e.getWidth(), e.getHeight());
+        }
 
         // Draw level end
         g.setColor(Color.GREEN);
