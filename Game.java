@@ -38,6 +38,7 @@ public class Game extends JPanel implements KeyListener {
 
     private List<Rectangle> deathZones = new ArrayList<>();
     private List<Enemy> enemies = new ArrayList<>();
+    private List<TrailPoint> playerTrails = new ArrayList<>();
 
     private int levelHeight = 0;
 
@@ -48,6 +49,9 @@ public class Game extends JPanel implements KeyListener {
 
     private int spawnX;
     private int spawnY;
+
+    private int shakeIntensity = 0;
+    private final java.util.Random random = new java.util.Random();
 
     boolean top = false;
     boolean bottom = false;
@@ -220,6 +224,43 @@ public class Game extends JPanel implements KeyListener {
     
     private void move() {
         updateEnemies();
+
+        if (shakeIntensity > 0) {
+            shakeIntensity--;
+        }
+        
+        //trail logic
+        for (int i = 0; i < 3; i++) {
+            playerTrails.add(new TrailPoint(player.getX() + (player.getWidth()/4), player.getY() + player.getHeight(), player.getWidth()));
+        }
+
+        playerTrails.removeIf(tp -> {
+            tp.update();
+            return tp.alpha <= 0 || tp.size <= 0;
+        });
+
+        //shake logic
+        for (Enemy e : enemies) {
+            if (player.getBounds().intersects(e.getBounds())) {
+                // 1. Trigger Screen Shake
+                shakeIntensity = 10; 
+
+                // 2. Determine push direction
+                // If enemy is to the left of player, push player right, and vice versa
+                int pushPower = 10;
+                if (e.getX() < player.getX()) {
+                    player.setXVelocity(pushPower); // Knockback
+                    player.setX(player.getX() + 5); // Physical nudge to prevent sticking
+                } else {
+                    player.setXVelocity(-pushPower);
+                    player.setX(player.getX() - 5);
+                }
+                
+                // 3. Optional: Bounce the player up slightly
+                player.setYVelocity(-8);
+            }
+        }
+        
         // 1. Handle X Movement
         player.setX(player.getX() + player.getXVelocity());
         for (Platform platform : platforms) {
@@ -405,6 +446,13 @@ public class Game extends JPanel implements KeyListener {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
 
+
+        int currentShakeX = 0;
+        int currentShakeY = 0;
+        if (shakeIntensity > 0) {
+            currentShakeX = random.nextInt(shakeIntensity * 2 + 1) - shakeIntensity;
+            currentShakeY = random.nextInt(shakeIntensity * 2 + 1) - shakeIntensity;
+        }
         // --- 1. DRAW DISTANT BACKGROUND (Parallax) ---
         if (levelBackground != null) {
             java.awt.geom.AffineTransform oldTransform = g2d.getTransform();
@@ -421,25 +469,41 @@ public class Game extends JPanel implements KeyListener {
 
         // --- 2. DRAW THE PHYSICAL WORLD (Full Speed) ---
         g2d.translate(-camX, -camY);
+        Composite originalComp = g2d.getComposite();
+
+        // Set XOR mode
+        g2d.setXORMode(Color.WHITE);
+        
+        // A. Draw Player Trails
+        g.setColor(new Color(150, 0, 0)); // Slightly darker red
+        for (TrailPoint tp : playerTrails) {
+            // Alternate between deep red and orange for the fire look
+            g.setColor(Math.random() > 0.5 ? new Color(200, 50, 0) : new Color(255, 100, 0));
+            g.fillRect((int)tp.x, (int)tp.y, (int)tp.size, (int)tp.size);
+        }
+
+        // B. Draw Player
+        g.setColor(Color.RED);
+        g.fillRect(player.getX(), player.getY(), player.getWidth(), player.getHeight());
+
+        // C. Draw Enemies
+        g.setColor(Color.CYAN);
+        for (Enemy e : enemies) {
+            g.fillRect(e.getX(), e.getY(), e.getWidth(), e.getHeight());
+        }
+
+        // D. Cleanup
+        g2d.setPaintMode();
+        g2d.setComposite(originalComp);
+
+        // --- 3. DRAW EVERYTHING ELSE (Goal, etc.) ---
+        g.setColor(Color.GREEN);
+        g.fillRect(levelEndRectangle.getX(), levelEndRectangle.getY(), levelEndRectangle.getWidth(), levelEndRectangle.getHeight());
 
         // 3. DRAW FOREGROUND
         if (levelForeground != null) {
             g.drawImage(levelForeground, 0, 0, null);
         }
-
-        // Draw player
-        g.setColor(Color.RED);
-        g.fillRect(player.getX(), player.getY(), player.getWidth(), player.getHeight());
-
-        // Draw enemies
-        g.setColor(Color.ORANGE);
-        for (Enemy e : enemies) {
-            g.fillRect(e.getX(), e.getY(), e.getWidth(), e.getHeight());
-        }
-
-        // Draw level end
-        g.setColor(Color.GREEN);
-        g.fillRect(levelEndRectangle.getX(), levelEndRectangle.getY(), levelEndRectangle.getWidth(), levelEndRectangle.getHeight());
 
         g2d.translate(camX, camY); // Reset for next frame
     }
