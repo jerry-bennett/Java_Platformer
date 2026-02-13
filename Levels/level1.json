@@ -70,9 +70,11 @@
         {
          "id":7,
          "image":"level1\/platforms_fg.png",
-         "imageheight":640,
+         "imageheight":1280,
          "imagewidth":1920,
          "name":"foreground",
+         "offsetx":0,
+         "offsety":-320,
          "opacity":1,
          "type":"imagelayer",
          "visible":true,
@@ -85,7 +87,7 @@
          "name":"Rectangles",
          "objects":[
                 {
-                 "height":135.515151515152,
+                 "height":121.000000000001,
                  "id":19,
                  "name":"death",
                  "rotation":0,
@@ -93,7 +95,7 @@
                  "visible":true,
                  "width":1992.48484848485,
                  "x":-12.8484848484849,
-                 "y":529.484848484849
+                 "y":544
                 }, 
                 {
                  "height":96,
@@ -215,6 +217,39 @@
                  "width":64,
                  "x":1696,
                  "y":224
+                }, 
+                {
+                 "height":192,
+                 "id":40,
+                 "name":"",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":32,
+                 "x":544,
+                 "y":32
+                }, 
+                {
+                 "height":192,
+                 "id":41,
+                 "name":"",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":32,
+                 "x":704,
+                 "y":32
+                }, 
+                {
+                 "height":64,
+                 "id":42,
+                 "name":"",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":384,
+                 "x":736,
+                 "y":32
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -256,7 +291,7 @@
          "y":0
         }],
  "nextlayerid":9,
- "nextobjectid":38,
+ "nextobjectid":43,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",

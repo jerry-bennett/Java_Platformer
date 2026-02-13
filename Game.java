@@ -16,6 +16,7 @@ public class Game extends JPanel implements KeyListener {
     private boolean onGround = false;
     private int coyoteCounter = 0;
     private final int COYOTE_TIME_MAX = 10;
+    private boolean isWallGrabbing = false;
 
     private final int JUMP_SPEED = 15;
     private final int MOVE_SPEED = 5;
@@ -121,6 +122,8 @@ public class Game extends JPanel implements KeyListener {
                     } else {
                         // Foreground stays sharp
                         levelForeground = img;
+                        bgOffsetY = offY;
+                        bgOffsetX = offX;
                         System.out.println("Loaded Foreground: " + fileName);
                     }
                 } catch (Exception e) {
@@ -272,18 +275,31 @@ public class Game extends JPanel implements KeyListener {
                 player.setYVelocity(-8);
             }
         }
-        
+
+        // movement
         // 1. Handle X Movement
+        isWallGrabbing = false;
         player.setX(player.getX() + player.getXVelocity());
         for (Platform platform : platforms) {
             if (player.getBounds().intersects(platform.getBounds())) {
-                if (player.getXVelocity() > 0) player.setX(platform.getX() - player.getWidth());
-                else if (player.getXVelocity() < 0) player.setX(platform.getX() + platform.getWidth());
+                if (player.getXVelocity() > 0) {
+                    player.setX(platform.getX() - player.getWidth());
+                    if (!onGround) isWallGrabbing = true; // Touching wall while in air
+                } else if (player.getXVelocity() < 0) {
+                    player.setX(platform.getX() + platform.getWidth());
+                    if (!onGround) isWallGrabbing = true; // Touching wall while in air
+                }
             }
         }
-
         // 2. Handle Y Movement & Gravity
-        player.setYVelocity(player.getYVelocity() + GRAVITY);
+        int currentGravity = GRAVITY;
+        if (isWallGrabbing && player.getYVelocity() > 0) {
+            currentGravity = 0; // Friction!
+            player.setYVelocity(2); // Slow, constant slide down
+        } else {
+            player.setYVelocity(player.getYVelocity() + GRAVITY);
+        }
+
         player.setY(player.getY() + player.getYVelocity());
 
         // 3. Collision Resolution
@@ -472,7 +488,7 @@ public class Game extends JPanel implements KeyListener {
             // This slides slower to create depth
             int parallaxX = (int) (camX * 0.5); 
             int parallaxY = (int) (camY * 0.5); 
-            g2d.translate(-parallaxX, -parallaxY);
+            g2d.translate(-camX + currentShakeX, -camY + currentShakeY);
             
             g.drawImage(levelBackground, bgOffsetX, bgOffsetY, null);
             
@@ -511,7 +527,7 @@ public class Game extends JPanel implements KeyListener {
 
         // 3. DRAW FOREGROUND
         if (levelForeground != null) {
-            g.drawImage(levelForeground, 0, 0, null);
+            g.drawImage(levelForeground, bgOffsetX, bgOffsetY, null);
         }
 
         g2d.translate(camX, camY); // Reset for next frame
@@ -530,12 +546,24 @@ public void keyPressed(KeyEvent e) {
     int keyCode = e.getKeyCode();
     switch (keyCode) {
         case KeyEvent.VK_W:
-    if (coyoteCounter > 0) { // Can jump if on ground OR just walked off
-            player.setYVelocity(-JUMP_SPEED);
-            onGround = false; 
-            coyoteCounter = 0; // Prevent double jumping in mid-air
-        }
-        break;
+            if (coyoteCounter > 0) { // Can jump if on ground OR just walked off
+                    player.setYVelocity(-JUMP_SPEED);
+                    onGround = false; 
+                    coyoteCounter = 0; // Prevent double jumping in mid-air
+            }
+            else if (isWallGrabbing) {
+                // Wall Jump!
+                player.setYVelocity(-JUMP_SPEED);
+                // Kick the player away from the wall
+                if (leftPressed) {
+                    player.setXVelocity(MOVE_SPEED * 2); 
+                } else if (rightPressed) {
+                    player.setXVelocity(-MOVE_SPEED * 2);
+                }
+                
+                isWallGrabbing = false;
+            }
+    break;
         case KeyEvent.VK_A:
             leftPressed = true;
             player.setXVelocity(-MOVE_SPEED);

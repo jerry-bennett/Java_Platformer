@@ -20,7 +20,7 @@ public class TrailPoint {
     }
 
     public void update() {
-        this.x += vx;
+        this.x += vx + (Math.random() * 2 - 1);
         this.y += vy;
         this.alpha -= 0.015f; 
         this.size -= 0.3f;
