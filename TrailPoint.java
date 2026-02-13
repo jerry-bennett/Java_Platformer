@@ -1,3 +1,5 @@
+import java.awt.Color;
+
 public class TrailPoint {
     public float alpha; 
     public float size;
@@ -22,5 +24,13 @@ public class TrailPoint {
         this.y += vy;
         this.alpha -= 0.015f; 
         this.size -= 0.3f;
+    }
+
+    public Color getColor() {
+        int r = 255;
+        int g = (int) (255 * alpha); // High green + high red = Yellow
+        int b = 0;
+        
+        return new Color(r, g, b);
     }
 }

@@ -486,7 +486,7 @@ public class Game extends JPanel implements KeyListener {
         // --- PASS 1: Particles & Enemies ---
         g2d.setXORMode(Color.WHITE);
         for (TrailPoint tp : playerTrails) {
-            g.setColor(Math.random() > 0.5 ? new Color(200, 50, 0) : new Color(255, 100, 0));
+            g.setColor(tp.getColor());
             g.fillRect((int)tp.x, (int)tp.y, (int)tp.size, (int)tp.size);
         }
         
