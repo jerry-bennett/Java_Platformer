@@ -37,6 +37,8 @@ public class Game extends JPanel implements KeyListener {
     private int camX = 0;
     private int camY = 0;
 
+    private int jumpLockoutTimer = 0;
+
     private List<Rectangle> deathZones = new ArrayList<>();
     private List<Enemy> enemies = new ArrayList<>();
     private List<TrailPoint> playerTrails = new ArrayList<>();
@@ -230,6 +232,7 @@ public class Game extends JPanel implements KeyListener {
     private void move() {
         updateEnemies();
         particleTimer++;
+        if (jumpLockoutTimer > 0) jumpLockoutTimer--;
 
         if (shakeIntensity > 0) {
             shakeIntensity--;
@@ -279,15 +282,22 @@ public class Game extends JPanel implements KeyListener {
         // movement
         // 1. Handle X Movement
         isWallGrabbing = false;
+
+        // Apply friction if no keys are pressed
+        if (!leftPressed && !rightPressed) {
+            player.setXVelocity((int)(player.getXVelocity() * 0.8)); // 0.8 is the friction coefficient
+            if (Math.abs(player.getXVelocity()) < 1) player.setXVelocity(0);
+        }
         player.setX(player.getX() + player.getXVelocity());
         for (Platform platform : platforms) {
             if (player.getBounds().intersects(platform.getBounds())) {
                 if (player.getXVelocity() > 0) {
                     player.setX(platform.getX() - player.getWidth());
-                    if (!onGround) isWallGrabbing = true; // Touching wall while in air
+                    // Only grab if we are actually moving toward the wall or pressing the key toward it
+                    if (!onGround && rightPressed) isWallGrabbing = true; 
                 } else if (player.getXVelocity() < 0) {
                     player.setX(platform.getX() + platform.getWidth());
-                    if (!onGround) isWallGrabbing = true; // Touching wall while in air
+                    if (!onGround && leftPressed) isWallGrabbing = true;
                 }
             }
         }
@@ -485,13 +495,15 @@ public class Game extends JPanel implements KeyListener {
         if (levelBackground != null) {
             java.awt.geom.AffineTransform oldTransform = g2d.getTransform();
             
-            // This slides slower to create depth
-            int parallaxX = (int) (camX * 0.5); 
-            int parallaxY = (int) (camY * 0.5); 
-            g2d.translate(-camX + currentShakeX, -camY + currentShakeY);
+            // A. Calculate the parallax shift
+            int pX = (int) (camX * 0.5); 
+            int pY = (int) (camY * 0.5);
+
+            // B. Move the camera for the background pass
+            g2d.translate(-camX + pX + currentShakeX, -camY + pY + currentShakeY);
             
             g.drawImage(levelBackground, bgOffsetX, bgOffsetY, null);
-            
+    
             g2d.setTransform(oldTransform);
         }
 
@@ -554,23 +566,23 @@ public void keyPressed(KeyEvent e) {
             else if (isWallGrabbing) {
                 // Wall Jump!
                 player.setYVelocity(-JUMP_SPEED);
+                jumpLockoutTimer = 15;
                 // Kick the player away from the wall
                 if (leftPressed) {
                     player.setXVelocity(MOVE_SPEED * 2); 
                 } else if (rightPressed) {
                     player.setXVelocity(-MOVE_SPEED * 2);
                 }
-                
                 isWallGrabbing = false;
             }
     break;
         case KeyEvent.VK_A:
             leftPressed = true;
-            player.setXVelocity(-MOVE_SPEED);
+            if (jumpLockoutTimer <= 0) player.setXVelocity(-MOVE_SPEED);
             break;
         case KeyEvent.VK_D:
             rightPressed = true;
-            player.setXVelocity(MOVE_SPEED);
+            if (jumpLockoutTimer <= 0) player.setXVelocity(MOVE_SPEED);
             break;
         case KeyEvent.VK_ESCAPE:
             // stop the game
@@ -585,24 +597,14 @@ public void keyReleased(KeyEvent e) {
     switch (keyCode) {
         case KeyEvent.VK_W:
             if (player.getYVelocity() < 0) {
-            player.setYVelocity(player.getYVelocity() / 2);
-        }
-        break;
+                player.setYVelocity(player.getYVelocity() / 2); // Variable jump height
+            }
+            break;
         case KeyEvent.VK_A:
             leftPressed = false;
-            if (!rightPressed) { // Stop moving left if right is not pressed
-                player.setXVelocity(0);
-            } else {
-                player.setXVelocity(MOVE_SPEED); // Move right if right is still pressed
-            }
             break;
         case KeyEvent.VK_D:
             rightPressed = false;
-            if (!leftPressed) { // Stop moving right if left is not pressed
-                player.setXVelocity(0);
-            } else {
-                player.setXVelocity(-MOVE_SPEED); // Move left if left is still pressed
-            }
             break;
     }
 }
