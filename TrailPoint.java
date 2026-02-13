@@ -1,19 +1,26 @@
 public class TrailPoint {
-        float alpha; // 1.0 is fresh, 0.0 is gone
-        float size;
-        float x, y, vx, vy;
-        public TrailPoint(int x, int y, int startSize) {
-            this.x = x + (float)(Math.random() * 20 - 10); // Random offset so it's not a stiff line
-            this.y = y;
-            this.vx = (float)(Math.random() * 2 - 1);      // Random horizontal drift
-            this.vy = (float)(Math.random() * -2 - 1);     // Upward speed
-            this.alpha = 1.0f;
-            this.size = (float)(Math.random() * 15 + 10);  // Varied particle sizes
-        }
-        public void update() {
-            this.x += vx;
-            this.y += vy;
-            this.alpha -= 0.01f; 
-            this.size -= 0.5f;
-        }
+    public float alpha; 
+    public float size;
+    public float x, y, vx, vy;
+
+    public TrailPoint(int x, int y, int startSize, int playerWidth, float playerVX) {
+        // Center the spawn on the player with some random spread
+        this.x = x + (float)(Math.random() * playerWidth); 
+        this.y = y;
+
+        // TILT LOGIC: 
+        float tilt = -playerVX * 0.2f; 
+        
+        this.vx = tilt + (float)(Math.random() * 2 - 1); // Drift + Randomness
+        this.vy = (float)(Math.random() * -2 - 1);     
+        this.alpha = 1f;
+        this.size = (float)(Math.random() * (startSize / 2) + 5);  
     }
+
+    public void update() {
+        this.x += vx;
+        this.y += vy;
+        this.alpha -= 0.015f; 
+        this.size -= 0.3f;
+    }
+}

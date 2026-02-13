@@ -56,6 +56,8 @@ public class Game extends JPanel implements KeyListener {
     boolean top = false;
     boolean bottom = false;
 
+    private int particleTimer = 0;
+
     public Game(String levelFilePath) {
         setFocusable(true);
         setPreferredSize(new Dimension(500, 500));
@@ -224,6 +226,7 @@ public class Game extends JPanel implements KeyListener {
     
     private void move() {
         updateEnemies();
+        particleTimer++;
 
         if (shakeIntensity > 0) {
             shakeIntensity--;
@@ -231,7 +234,16 @@ public class Game extends JPanel implements KeyListener {
         
         //trail logic
         for (int i = 0; i < 3; i++) {
-            playerTrails.add(new TrailPoint(player.getX() + (player.getWidth()/4), player.getY() - 10, player.getWidth()));
+            // Only spawn every 4th frame
+            if (particleTimer % 4 == 0) {
+                playerTrails.add(new TrailPoint(
+                    player.getX(), 
+                    player.getY(), 
+                    player.getWidth(), // startSize
+                    player.getWidth(), // playerWidth
+                    (float)player.getXVelocity() // The new "tilt" parameter
+                ));
+            }
         }
 
         playerTrails.removeIf(tp -> {
