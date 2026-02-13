@@ -53,6 +53,11 @@ public class Game extends JPanel implements KeyListener {
     private int spawnX;
     private int spawnY;
 
+    private double visualWidth;
+    private double visualHeight;
+
+    private List<Dust> dustParticles = new ArrayList<>();
+
     private int shakeIntensity = 0;
     private final java.util.Random random = new java.util.Random();
 
@@ -71,6 +76,9 @@ public class Game extends JPanel implements KeyListener {
 
         // read platforms from the level file
         loadPlatformsFromJson(levelFilePath);
+
+        // PRE-LOAD SOUNDS
+        SoundManager.loadSound("jump", "/sfx/jump.wav");
     }
 
     private BufferedImage blurImage(BufferedImage src) {
@@ -81,6 +89,15 @@ public class Game extends JPanel implements KeyListener {
         };
         java.awt.image.ConvolveOp op = new java.awt.image.ConvolveOp(new java.awt.image.Kernel(3, 3, matrix));
         return op.filter(src, null);
+    }
+
+    private void createDust(int x, int y, int count) {
+        for (int i = 0; i < count; i++) {
+            // Random velocity: x is left/right, y is slightly upward
+            double vx = (Math.random() - 0.5) * 4; 
+            double vy = (Math.random() * -2); 
+            dustParticles.add(new Dust(x, y, vx, vy));
+        }
     }
 
     private void loadPlatformsFromJson(String path) {
@@ -208,29 +225,29 @@ public class Game extends JPanel implements KeyListener {
     }
 
     private void loadNewLevel(String newLevelFilePath) {
-    // Wipe the old data
-    platforms.clear();
-    deathZones.clear();
-    levelBackground = null;
-    levelForeground = null;
+        // Wipe the old data
+        platforms.clear();
+        deathZones.clear();
+        levelBackground = null;
+        levelForeground = null;
 
-    // Load the new JSON and images
-    loadPlatformsFromJson(newLevelFilePath);
+        // Load the new JSON and images
+        loadPlatformsFromJson(newLevelFilePath);
 
-    // Reset player physics
-    player.setYVelocity(0);
-    player.setXVelocity(0);
-    
-    // Reset camera to spawn point to prevent "flash" of previous level's position
-    camX = player.getX() - (getWidth() / 2);
-    camY = player.getY() - (getHeight() / 2);
+        // Reset player physics
+        player.setYVelocity(0);
+        player.setXVelocity(0);
+        
+        // Reset camera to spawn point to prevent "flash" of previous level's position
+        camX = player.getX() - (getWidth() / 2);
+        camY = player.getY() - (getHeight() / 2);
 
-    System.out.println("Level Loaded: " + newLevelFilePath);
-}
+        System.out.println("Level Loaded: " + newLevelFilePath);
+    }
 
-    
     private void move() {
         updateEnemies();
+        player.updateAnimation();
         particleTimer++;
         if (jumpLockoutTimer > 0) jumpLockoutTimer--;
 
@@ -251,6 +268,12 @@ public class Game extends JPanel implements KeyListener {
                 ));
             }
         }
+
+        // dust logic
+        dustParticles.removeIf(d -> {
+            d.update();
+            return d.alpha <= 0;
+        });
 
         playerTrails.removeIf(tp -> {
             tp.update();
@@ -294,18 +317,22 @@ public class Game extends JPanel implements KeyListener {
                 if (player.getXVelocity() > 0) {
                     player.setX(platform.getX() - player.getWidth());
                     // Only grab if we are actually moving toward the wall or pressing the key toward it
-                    if (!onGround && rightPressed) isWallGrabbing = true; 
+                    if (!onGround && rightPressed){
+                        isWallGrabbing = true;
+                        createDust(player.getX(), player.getY() + player.getHeight()/2, 5);
+                    }  
                 } else if (player.getXVelocity() < 0) {
                     player.setX(platform.getX() + platform.getWidth());
-                    if (!onGround && leftPressed) isWallGrabbing = true;
+                    if (!onGround && leftPressed){
+                        isWallGrabbing = true;
+                        createDust(player.getX(), player.getY() + player.getHeight()/2, 5);
+                    } 
                 }
             }
         }
         // 2. Handle Y Movement & Gravity
-        int currentGravity = GRAVITY;
         if (isWallGrabbing && player.getYVelocity() > 0) {
-            currentGravity = 0; // Friction!
-            player.setYVelocity(2); // Slow, constant slide down
+            player.setYVelocity(2); // Slow slide
         } else {
             player.setYVelocity(player.getYVelocity() + GRAVITY);
         }
@@ -316,6 +343,10 @@ public class Game extends JPanel implements KeyListener {
         for (Platform platform : platforms) {
             if (player.getBounds().intersects(platform.getBounds())) {
                 if (player.getYVelocity() > 0) { // Falling Down
+                    if (player.getYVelocity() > 5) { // Only squash if falling with some speed
+                        player.setScale(1.4, 0.7); // Wide and short
+                        createDust(player.getX() + player.getWidth()/2, platform.getY(), 8);// Dust particles
+                    }
                     player.setY(platform.getY() - player.getHeight());
                     player.setYVelocity(0);
                 } else if (player.getYVelocity() < 0) { // Hitting ceiling
@@ -527,7 +558,15 @@ public class Game extends JPanel implements KeyListener {
         // --- PASS 2: The Player (Isolated) ---
         g2d.setXORMode(Color.WHITE);
         g.setColor(Color.RED);
-        g.fillRect(player.getX(), player.getY(), player.getWidth(), player.getHeight());
+
+        int vWidth = (int)(player.getWidth() * player.getScaleX());
+        int vHeight = (int)(player.getHeight() * player.getScaleY());
+
+        // Offset the drawing so it scales from the center/bottom rather than the top-left
+        int offsetX = (vWidth - player.getWidth()) / 2;
+        int offsetY = (vHeight - player.getHeight()); // Anchors to feet
+
+       g.fillRect(player.getX() - offsetX, player.getY() - offsetY, vWidth, vHeight);
 
         // D. Cleanup
         g2d.setPaintMode();
@@ -536,6 +575,11 @@ public class Game extends JPanel implements KeyListener {
         // --- 3. DRAW EVERYTHING ELSE (Goal, etc.) ---
         g.setColor(Color.GREEN);
         g.fillRect(levelEndRectangle.getX(), levelEndRectangle.getY(), levelEndRectangle.getWidth(), levelEndRectangle.getHeight());
+
+        g.setColor(new Color(200, 200, 200)); // Light Gray
+        for (Dust d : dustParticles) {
+            g.fillRect((int)d.x, (int)d.y, d.size, d.size);
+        }
 
         // 3. DRAW FOREGROUND
         if (levelForeground != null) {
@@ -560,8 +604,11 @@ public void keyPressed(KeyEvent e) {
         case KeyEvent.VK_W:
             if (coyoteCounter > 0) { // Can jump if on ground OR just walked off
                     player.setYVelocity(-JUMP_SPEED);
+                    createDust(player.getX() + player.getWidth()/2, player.getY() + player.getHeight(), 5);
+                    player.setScale(0.8, 1.3);
                     onGround = false; 
                     coyoteCounter = 0; // Prevent double jumping in mid-air
+                    SoundManager.playSound("jump");
             }
             else if (isWallGrabbing) {
                 // Wall Jump!
@@ -574,6 +621,7 @@ public void keyPressed(KeyEvent e) {
                     player.setXVelocity(-MOVE_SPEED * 2);
                 }
                 isWallGrabbing = false;
+                SoundManager.playSound("jump");
             }
     break;
         case KeyEvent.VK_A:

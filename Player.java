@@ -7,6 +7,8 @@ public class Player {
     private int height;
     private int xVelocity;
     private int yVelocity;
+    private double scaleX = 1.0;
+    private double scaleY = 1.0;
 
     public void setX(int newX) {
         this.x = newX;
@@ -66,5 +68,25 @@ public class Player {
     public int getYVelocity() {
         return yVelocity;
     }
+
+    public void setScale(double sx, double sy) {
+        this.scaleX = sx;
+        this.scaleY = sy;
+    }
+
+    public double getScaleX(){
+        return scaleX;
+    }
+
+    public double getScaleY(){
+        return scaleY;
+    }
+
+    // squish logic for wall jumping
+    public void updateAnimation() {
+        scaleX += (1.0 - scaleX) * 0.1; 
+        scaleY += (1.0 - scaleY) * 0.1;
+    }
+    
     
 }
