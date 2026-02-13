@@ -53,9 +53,6 @@ public class Game extends JPanel implements KeyListener {
     private int spawnX;
     private int spawnY;
 
-    private double visualWidth;
-    private double visualHeight;
-
     private List<Dust> dustParticles = new ArrayList<>();
 
     private int shakeIntensity = 0;
@@ -63,6 +60,8 @@ public class Game extends JPanel implements KeyListener {
 
     boolean top = false;
     boolean bottom = false;
+
+    private boolean waitingToRespawn = false;
 
     private int particleTimer = 0;
 
@@ -89,6 +88,25 @@ public class Game extends JPanel implements KeyListener {
         };
         java.awt.image.ConvolveOp op = new java.awt.image.ConvolveOp(new java.awt.image.Kernel(3, 3, matrix));
         return op.filter(src, null);
+    }
+
+    private void triggerDeath() {
+        if (waitingToRespawn) return; // Prevent double-triggering
+
+        SoundManager.playSound("death");
+        player.setAlive(false);
+        waitingToRespawn = true;
+
+        // Create a big explosion of red particles
+        for (int i = 0; i < 30; i++) {
+            double vx = (Math.random() - 0.5) * 12;
+            double vy = (Math.random() - 0.5) * 12;
+            // Spawning red dust at player center
+            Dust d = new Dust(player.getX() + player.getWidth()/2, 
+                            player.getY() + player.getHeight()/2, vx, vy);
+            d.size = (int)(Math.random() * 6) + 4;
+            dustParticles.add(d);
+        }
     }
 
     private void createDust(int x, int y, int count) {
@@ -138,6 +156,8 @@ public class Game extends JPanel implements KeyListener {
                         levelBackground = blurImage(img);
                         bgOffsetY = offY;
                         bgOffsetX = offX;
+                        if (img.getWidth() > levelWidth) levelWidth = img.getWidth();
+                        if (img.getHeight() > levelHeight) levelHeight = img.getHeight();
                     } else {
                         // Foreground stays sharp
                         levelForeground = img;
@@ -189,7 +209,10 @@ public class Game extends JPanel implements KeyListener {
                         // Otherwise, it's a normal platform
                         platforms.add(new Platform(x, y, width, height));
                         if (x + width > levelWidth) levelWidth = x + width;
-                        if (y + height > levelHeight) levelHeight = y + height;
+                        if (y + height > levelHeight) {
+                            levelHeight = y + height;
+                            System.out.println("New Level Height: " + levelHeight);
+                        }
 
                     }
                 }
@@ -246,173 +269,169 @@ public class Game extends JPanel implements KeyListener {
     }
 
     private void move() {
+        // --- 1. GLOBAL WORLD UPDATES (Always run, even if dead) ---
         updateEnemies();
         player.updateAnimation();
         particleTimer++;
-        if (jumpLockoutTimer > 0) jumpLockoutTimer--;
-
-        if (shakeIntensity > 0) {
-            shakeIntensity--;
-        }
         
-        //trail logic
-        for (int i = 0; i < 3; i++) {
-            // Only spawn every 4th frame
-            if (particleTimer % 4 == 0) {
-                playerTrails.add(new TrailPoint(
-                    player.getX(), 
-                    player.getY(), 
-                    player.getWidth(), // startSize
-                    player.getWidth(), // playerWidth
-                    (float)player.getXVelocity() // The new "tilt" parameter
-                ));
-            }
-        }
+        if (jumpLockoutTimer > 0) jumpLockoutTimer--;
+        if (shakeIntensity > 0) shakeIntensity--;
 
-        // dust logic
+        // Update Dust/Explosion Particles
         dustParticles.removeIf(d -> {
             d.update();
             return d.alpha <= 0;
         });
 
+        // Update Player Trails
         playerTrails.removeIf(tp -> {
             tp.update();
             return tp.alpha <= 0 || tp.size <= 0;
         });
 
-        //shake logic
-        for (Enemy e : enemies) {
-            if (player.getBounds().intersects(e.getBounds())) {
-                // 1. Trigger Screen Shake
-                shakeIntensity = 10; 
+        // --- 2. PLAYER LOGIC BRANCH ---
+        if (player.isAlive()) {
+            cameraSmoothing = 0.15f;
 
-                // 2. Determine push direction
-                // If enemy is to the left of player, push player right, and vice versa
-                int pushPower = 10;
-                if (e.getX() < player.getX()) {
-                    player.setXVelocity(pushPower); // Knockback
-                    player.setX(player.getX() + 5); // Physical nudge to prevent sticking
-                } else {
-                    player.setXVelocity(-pushPower);
-                    player.setX(player.getX() - 5);
-                }
-                
-                // 3. Optional: Bounce the player up slightly
-                player.setYVelocity(-8);
+            // 1. Center target on player
+            int targetX = player.getX() - (getWidth() / 2);
+            int targetY = player.getY() - (getHeight() / 2);
+
+            // 2. Horizontal Clamping
+            if (targetX < 0) targetX = 0;
+            if (targetX > levelWidth - getWidth()) targetX = levelWidth - getWidth();
+
+            // 3. Vertical Clamping
+            if (levelHeight > getHeight()) {
+                // Level is taller than screen: Track the player!
+                if (targetY < 0) targetY = 0;
+                if (targetY > levelHeight - getHeight()) targetY = levelHeight - getHeight();
+            } else {
+                // Level is small: Center it vertically
+                targetY = (levelHeight - getHeight()) / 2; 
             }
-        }
 
-        // movement
-        // 1. Handle X Movement
-        isWallGrabbing = false;
+            // 4. Apply Movement (LERP)
+            camX += (targetX - camX) * cameraSmoothing;
+            camY += (targetY - camY) * cameraSmoothing;
 
-        // Apply friction if no keys are pressed
-        if (!leftPressed && !rightPressed) {
-            player.setXVelocity((int)(player.getXVelocity() * 0.8)); // 0.8 is the friction coefficient
-            if (Math.abs(player.getXVelocity()) < 1) player.setXVelocity(0);
-        }
-        player.setX(player.getX() + player.getXVelocity());
-        for (Platform platform : platforms) {
-            if (player.getBounds().intersects(platform.getBounds())) {
-                if (player.getXVelocity() > 0) {
-                    player.setX(platform.getX() - player.getWidth());
-                    // Only grab if we are actually moving toward the wall or pressing the key toward it
-                    if (!onGround && rightPressed){
-                        isWallGrabbing = true;
-                        createDust(player.getX(), player.getY() + player.getHeight()/2, 5);
-                    }  
-                } else if (player.getXVelocity() < 0) {
-                    player.setX(platform.getX() + platform.getWidth());
-                    if (!onGround && leftPressed){
-                        isWallGrabbing = true;
-                        createDust(player.getX(), player.getY() + player.getHeight()/2, 5);
-                    } 
-                }
+            // 5. Final precision snap
+            if (Math.abs(camX - targetX) < 1) camX = targetX;
+            if (Math.abs(camY - targetY) < 1) camY = targetY;
+
+            // Trail generation
+            if (particleTimer % 4 == 0) {
+                playerTrails.add(new TrailPoint(
+                    player.getX(), 
+                    player.getY(), 
+                    player.getWidth(), 
+                    player.getWidth(), 
+                    (float)player.getXVelocity()
+                ));
             }
-        }
-        // 2. Handle Y Movement & Gravity
-        if (isWallGrabbing && player.getYVelocity() > 0) {
-            player.setYVelocity(2); // Slow slide
-        } else {
-            player.setYVelocity(player.getYVelocity() + GRAVITY);
-        }
 
-        player.setY(player.getY() + player.getYVelocity());
-
-        // 3. Collision Resolution
-        for (Platform platform : platforms) {
-            if (player.getBounds().intersects(platform.getBounds())) {
-                if (player.getYVelocity() > 0) { // Falling Down
-                    if (player.getYVelocity() > 5) { // Only squash if falling with some speed
-                        player.setScale(1.4, 0.7); // Wide and short
-                        createDust(player.getX() + player.getWidth()/2, platform.getY(), 8);// Dust particles
+            // Enemy Collision (Knockback)
+            for (Enemy e : enemies) {
+                if (player.getBounds().intersects(e.getBounds())) {
+                    shakeIntensity = 10; 
+                    int pushPower = 10;
+                    if (e.getX() < player.getX()) {
+                        player.setXVelocity(pushPower);
+                        player.setX(player.getX() + 5);
+                    } else {
+                        player.setXVelocity(-pushPower);
+                        player.setX(player.getX() - 5);
                     }
-                    player.setY(platform.getY() - player.getHeight());
-                    player.setYVelocity(0);
-                } else if (player.getYVelocity() < 0) { // Hitting ceiling
-                    player.setY(platform.getY() + platform.getHeight());
-                    player.setYVelocity(0);
+                    player.setYVelocity(-8);
                 }
             }
-        }
 
-        // 4. Floor Boundary
-        onGround = checkOnGround();
-        if (onGround) {
-            coyoteCounter = COYOTE_TIME_MAX; // Refill the "grace period"
-        } else {
-            if (coyoteCounter > 0) coyoteCounter--; // Use up the grace period
-        }
-
-        // 5. UPDATE onGround status at the very end and set camera
-        camX = player.getX() - (getWidth() / 2);
-        camY = player.getY() - (getHeight() / 2);
-        onGround = checkOnGround();
-
-        if (isPlayerCollidingWithLevelEnd(levelEndRectangle, player)) {
-            System.out.println("Goal reached!");
-            advanceToNextLevel();
-        }
-
-        // 6. CHECK FOR DEATH ZONES
-        for (Rectangle zone : deathZones) {
-            if (player.getBounds().intersects(zone)) {
-                System.out.println("Player fell into a death zone!");
-                respawnPlayer();
-                break; 
+            // X Movement & Wall Grabbing
+            isWallGrabbing = false;
+            if (!leftPressed && !rightPressed) {
+                player.setXVelocity((int)(player.getXVelocity() * 0.8));
+                if (Math.abs(player.getXVelocity()) < 1) player.setXVelocity(0);
             }
-        }
+            
+            player.setX(player.getX() + player.getXVelocity());
+            for (Platform platform : platforms) {
+                if (player.getBounds().intersects(platform.getBounds())) {
+                    if (player.getXVelocity() > 0) {
+                        player.setX(platform.getX() - player.getWidth());
+                        if (!onGround && rightPressed) isWallGrabbing = true;
+                    } else if (player.getXVelocity() < 0) {
+                        player.setX(platform.getX() + platform.getWidth());
+                        if (!onGround && leftPressed) isWallGrabbing = true;
+                    }
+                }
+            }
 
-        if (player.getY() > 2000) { // Safety net if they miss a death zone
-            respawnPlayer();
-        }
+            // Y Movement & Gravity
+            if (isWallGrabbing && player.getYVelocity() > 0) {
+                player.setYVelocity(2); 
+            } else {
+                player.setYVelocity(player.getYVelocity() + GRAVITY);
+            }
+            player.setY(player.getY() + player.getYVelocity());
 
-        // 1. Calculate the IDEAL target (centered on player)
-        int targetX = player.getX() - (getWidth() / 2);
-        int targetY = player.getY() - (getHeight() / 2);
+            // Platform Collisions
+            for (Platform platform : platforms) {
+                if (player.getBounds().intersects(platform.getBounds())) {
+                    if (player.getYVelocity() > 0) {
+                        if (player.getYVelocity() > 5) {
+                            player.setScale(1.4, 0.7);
+                            createDust(player.getX() + player.getWidth()/2, platform.getY(), 8);
+                        }
+                        player.setY(platform.getY() - player.getHeight());
+                        player.setYVelocity(0);
+                    } else if (player.getYVelocity() < 0) {
+                        player.setY(platform.getY() + platform.getHeight());
+                        player.setYVelocity(0);
+                    }
+                }
+            }
 
-        // 2. Apply Vertical and Horizontal Clamping (from our last step)
-        if (targetX < 0) targetX = 0;
-        if (targetX > levelWidth - getWidth()) targetX = levelWidth - getWidth();
+            // Ground/Coyote Logic
+            onGround = checkOnGround();
+            if (onGround) {
+                coyoteCounter = COYOTE_TIME_MAX;
+            } else {
+                if (coyoteCounter > 0) coyoteCounter--;
+            }
 
-        if (targetY < 0) targetY = 0;
-        if (levelHeight > getHeight() && targetY > levelHeight - getHeight()) {
-            targetY = levelHeight - getHeight();
-        }
+            // Goal Check
+            if (isPlayerCollidingWithLevelEnd(levelEndRectangle, player)) {
+                advanceToNextLevel();
+            }
 
-        // 3. THE SMOOTHING (LERP)
-        // We move the camera a small fraction of the distance toward the target
-        camX += (targetX - camX) * cameraSmoothing;
-        camY += (targetY - camY) * cameraSmoothing;
+            // Death Zone Check
+            for (Rectangle zone : deathZones) {
+                if (player.getBounds().intersects(zone)) {
+                    triggerDeath();
+                    break; 
+                }
+            }
 
-        // Keep camera from showing out-of-bounds (the "dead zone")
-        if (camX < 0) camX = 0;
-        //if (camY < 0) camY = 0;
-        
+            // Fall out of world check
+            if (player.getY() > 2000) {
+                triggerDeath();
+            }
+
+            if (targetX < 0) targetX = 0;
+            if (targetX > levelWidth - getWidth()) targetX = levelWidth - getWidth();
+            if (targetY < 0) targetY = 0;
+            if (levelHeight > getHeight() && targetY > levelHeight - getHeight()) {
+                targetY = levelHeight - getHeight();
+            }
+
+            camX += (targetX - camX) * cameraSmoothing;
+            camY += (targetY - camY) * cameraSmoothing;
+            if (camX < 0) camX = 0;
+        } 
+
+        // --- 4. RENDER (Always call this at the end of the loop!) ---
         repaint();
-
     }
-
     private void updateEnemies() {
         for (Enemy e : enemies) {
             // 1. Gravity
@@ -556,21 +575,24 @@ public class Game extends JPanel implements KeyListener {
         g2d.setPaintMode(); // Reset to normal briefly
 
         // --- PASS 2: The Player (Isolated) ---
-        g2d.setXORMode(Color.WHITE);
-        g.setColor(Color.RED);
+        if (player.isAlive()){
+            g2d.setXORMode(Color.WHITE);
+            g.setColor(Color.RED);
 
-        int vWidth = (int)(player.getWidth() * player.getScaleX());
-        int vHeight = (int)(player.getHeight() * player.getScaleY());
+            int vWidth = (int)(player.getWidth() * player.getScaleX());
+            int vHeight = (int)(player.getHeight() * player.getScaleY());
 
-        // Offset the drawing so it scales from the center/bottom rather than the top-left
-        int offsetX = (vWidth - player.getWidth()) / 2;
-        int offsetY = (vHeight - player.getHeight()); // Anchors to feet
+            // Offset the drawing so it scales from the center/bottom rather than the top-left
+            int offsetX = (vWidth - player.getWidth()) / 2;
+            int offsetY = (vHeight - player.getHeight()); // Anchors to feet
 
-       g.fillRect(player.getX() - offsetX, player.getY() - offsetY, vWidth, vHeight);
+            g.fillRect(player.getX() - offsetX, player.getY() - offsetY, vWidth, vHeight);
 
-        // D. Cleanup
-        g2d.setPaintMode();
-        g2d.setComposite(originalComp);
+            // D. Cleanup
+            g2d.setPaintMode();
+            g2d.setComposite(originalComp);
+        }
+        
 
         // --- 3. DRAW EVERYTHING ELSE (Goal, etc.) ---
         g.setColor(Color.GREEN);
@@ -586,7 +608,17 @@ public class Game extends JPanel implements KeyListener {
             g.drawImage(levelForeground, bgOffsetX, bgOffsetY, null);
         }
 
+        if (waitingToRespawn) {
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("Arial", Font.BOLD, 20));
+            String msg = "PRESS ANY KEY TO RESTART";
+            // Center the text
+            int msgWidth = g.getFontMetrics().stringWidth(msg);
+            g.drawString(msg, (getWidth() / 2) - (msgWidth / 2), getHeight() / 2);
+        }
+
         g2d.translate(camX, camY); // Reset for next frame
+
     }
 
     private void respawnPlayer() {
@@ -600,6 +632,12 @@ public class Game extends JPanel implements KeyListener {
 @Override
 public void keyPressed(KeyEvent e) {
     int keyCode = e.getKeyCode();
+    if (waitingToRespawn) {
+        respawnPlayer();
+        player.setAlive(true);
+        waitingToRespawn = false;
+        return; // Exit so they don't jump immediately upon respawning
+    }
     switch (keyCode) {
         case KeyEvent.VK_W:
             if (coyoteCounter > 0) { // Can jump if on ground OR just walked off

@@ -9,6 +9,10 @@ public class Player {
     private int yVelocity;
     private double scaleX = 1.0;
     private double scaleY = 1.0;
+    private boolean alive = true;
+
+    public boolean isAlive() { return alive; }
+    public void setAlive(boolean alive) { this.alive = alive; }
 
     public void setX(int newX) {
         this.x = newX;
