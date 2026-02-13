@@ -13,7 +13,7 @@ public class TrailPoint {
         public void update() {
             this.x += vx;
             this.y += vy;
-            this.alpha -= 0.04f; 
+            this.alpha -= 0.01f; 
             this.size -= 0.5f;
         }
     }

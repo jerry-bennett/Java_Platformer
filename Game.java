@@ -231,7 +231,7 @@ public class Game extends JPanel implements KeyListener {
         
         //trail logic
         for (int i = 0; i < 3; i++) {
-            playerTrails.add(new TrailPoint(player.getX() + (player.getWidth()/4), player.getY() + player.getHeight(), player.getWidth()));
+            playerTrails.add(new TrailPoint(player.getX() + (player.getWidth()/4), player.getY() - 10, player.getWidth()));
         }
 
         playerTrails.removeIf(tp -> {
@@ -471,26 +471,23 @@ public class Game extends JPanel implements KeyListener {
         g2d.translate(-camX, -camY);
         Composite originalComp = g2d.getComposite();
 
-        // Set XOR mode
+        // --- PASS 1: Particles & Enemies ---
         g2d.setXORMode(Color.WHITE);
-        
-        // A. Draw Player Trails
-        g.setColor(new Color(150, 0, 0)); // Slightly darker red
         for (TrailPoint tp : playerTrails) {
-            // Alternate between deep red and orange for the fire look
             g.setColor(Math.random() > 0.5 ? new Color(200, 50, 0) : new Color(255, 100, 0));
             g.fillRect((int)tp.x, (int)tp.y, (int)tp.size, (int)tp.size);
         }
-
-        // B. Draw Player
-        g.setColor(Color.RED);
-        g.fillRect(player.getX(), player.getY(), player.getWidth(), player.getHeight());
-
-        // C. Draw Enemies
+        
         g.setColor(Color.CYAN);
         for (Enemy e : enemies) {
             g.fillRect(e.getX(), e.getY(), e.getWidth(), e.getHeight());
         }
+        g2d.setPaintMode(); // Reset to normal briefly
+
+        // --- PASS 2: The Player (Isolated) ---
+        g2d.setXORMode(Color.WHITE);
+        g.setColor(Color.RED);
+        g.fillRect(player.getX(), player.getY(), player.getWidth(), player.getHeight());
 
         // D. Cleanup
         g2d.setPaintMode();
