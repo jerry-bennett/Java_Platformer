@@ -34,10 +34,14 @@ public class Game extends JPanel implements KeyListener {
 
     private int currentLevelNumber = 1;
 
+    private int wallStickTimer = 0;
+    private final int MAX_STICK_TIME = 15;
+
     private int camX = 0;
     private int camY = 0;
 
     private int jumpLockoutTimer = 0;
+    private int lockoutDirection = 0;
 
     private List<Rectangle> deathZones = new ArrayList<>();
     private List<Enemy> enemies = new ArrayList<>();
@@ -261,6 +265,13 @@ public class Game extends JPanel implements KeyListener {
             shakeIntensity--;
         }
         
+        // Reset jump direction timer
+        if (jumpLockoutTimer > 0) {
+            jumpLockoutTimer--;
+            if (jumpLockoutTimer == 0) {
+                lockoutDirection = 0;
+            }
+        }
         // dust logic
         dustParticles.removeIf(d -> {
             d.update();
@@ -332,19 +343,25 @@ public class Game extends JPanel implements KeyListener {
                 if (player.getBounds().intersects(platform.getBounds())) {
                     if (player.getXVelocity() > 0) {
                         player.setX(platform.getX() - player.getWidth());
-                        // Only grab if we are actually moving toward the wall or pressing the key toward it
-                        if (!onGround && rightPressed){
+                        // AUTO-STICK:
+                        if (!onGround){
                             isWallGrabbing = true;
+                            wallStickTimer = MAX_STICK_TIME;
                             createDust(player.getX(), player.getY() + player.getHeight()/2, 5);
                         }  
                     } else if (player.getXVelocity() < 0) {
                         player.setX(platform.getX() + platform.getWidth());
-                        if (!onGround && leftPressed){
+                        if (!onGround){
                             isWallGrabbing = true;
+                            wallStickTimer = MAX_STICK_TIME;
                             createDust(player.getX(), player.getY() + player.getHeight()/2, 5);
                         } 
                     }
                 }
+            }
+            if (wallStickTimer > 0) {
+                wallStickTimer--;
+                if (wallStickTimer == 0) isWallGrabbing = false;
             }
             // 2. Handle Y Movement & Gravity
             if (isWallGrabbing && player.getYVelocity() > 0) {
@@ -640,20 +657,23 @@ public void keyPressed(KeyEvent e) {
                 // Kick the player away from the wall
                 if (leftPressed) {
                     player.setXVelocity(MOVE_SPEED * 2); 
+                    lockoutDirection = -1;
                 } else if (rightPressed) {
                     player.setXVelocity(-MOVE_SPEED * 2);
+                    lockoutDirection = 1;
                 }
                 isWallGrabbing = false;
+                wallStickTimer = 0;
                 SoundManager.playSound("jump");
             }
     break;
         case KeyEvent.VK_A:
             leftPressed = true;
-            if (jumpLockoutTimer <= 0) player.setXVelocity(-MOVE_SPEED);
+            if (jumpLockoutTimer <= 0 || lockoutDirection != -1) player.setXVelocity(-MOVE_SPEED);
             break;
         case KeyEvent.VK_D:
             rightPressed = true;
-            if (jumpLockoutTimer <= 0) player.setXVelocity(MOVE_SPEED);
+            if (jumpLockoutTimer <= 0 || lockoutDirection != 1) player.setXVelocity(MOVE_SPEED);
             break;
         case KeyEvent.VK_ESCAPE:
             // stop the game
