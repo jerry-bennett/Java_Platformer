@@ -7,6 +7,10 @@ public class Platform {
     private int width;
     private int height;
     private Color color;
+    private boolean isClimbable = false;
+
+    //debugging label
+    private String label = "platform";
 
     public Platform(int x, int y, int width, int height) {
         this.x = x;
@@ -22,6 +26,14 @@ public class Platform {
         return x;
     }
 
+    public String getLabel() { 
+        return label; 
+    }
+
+    public void setLabel(String label) { 
+        this.label = label; 
+    }
+    
     public Rectangle getBounds() {
         return new Rectangle(x, y, width, height);
     }
@@ -41,6 +53,9 @@ public class Platform {
     public Color getColor() {
         return color;
     }
+
+    public boolean isClimbable() { return isClimbable; }
+    public void setIsClimbable(boolean isClimbable) { this.isClimbable = isClimbable; }
 
     public boolean collidesWith(Player player) {
         int playerX = player.getX();
