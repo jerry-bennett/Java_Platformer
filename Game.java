@@ -58,6 +58,9 @@ public class Game extends JPanel implements KeyListener {
     private int bgOffsetX = 0;
     private int bgOffsetY = 0;
 
+    private int fgOffsetX = 0;
+    private int fgOffsetY = 0;
+
     private int spawnX;
     private int spawnY;
     
@@ -153,12 +156,15 @@ public class Game extends JPanel implements KeyListener {
                         levelBackground = blurImage(img);
                         bgOffsetY = offY;
                         bgOffsetX = offX;
-                    } else {
+                        System.out.println("Loaded Background: " + fileName);
+                        System.out.println("Background Offset Y: " + bgOffsetY);
+                    } else if (layerName.contains("foreground")){
                         // Foreground stays sharp
                         levelForeground = img;
-                        bgOffsetY = offY;
+                        fgOffsetY = offY;
                         bgOffsetX = offX;
                         System.out.println("Loaded Foreground: " + fileName);
+                        System.out.println("Foreground Offset Y: " + fgOffsetY);
                     }
                 } catch (Exception e) {
                     System.err.println("Could not load background image: " + fileName);
@@ -432,7 +438,7 @@ public class Game extends JPanel implements KeyListener {
                         
                         // 2. Knockback Enemy
                         int knockbackDir = (player.getX() < e.getX()) ? 1 : -1;
-                        e.setXVelocity(knockbackDir * 5);
+                        e.setXVelocity(knockbackDir * 50);
                         e.setYVelocity(-5); // Pop them up slightly
                         
                         // 3. Screen Shake for impact
@@ -605,6 +611,8 @@ public class Game extends JPanel implements KeyListener {
             // B. Move the camera for the background pass
             g2d.translate(-camX + pX + currentShakeX, -camY + pY + currentShakeY);
             
+            //DEBUG 
+            //System.out.println("Background Offset Y (PaintComponent)" + bgOffsetY);
             g.drawImage(levelBackground, bgOffsetX, bgOffsetY, null);
     
             g2d.setTransform(oldTransform);
@@ -666,7 +674,8 @@ public class Game extends JPanel implements KeyListener {
 
         // 3. DRAW FOREGROUND
         if (levelForeground != null) {
-            g.drawImage(levelForeground, bgOffsetX, bgOffsetY, null);
+            g.drawImage(levelForeground, fgOffsetX, fgOffsetY, null);
+
         }
 
         g2d.translate(camX, camY); // Reset for next frame
@@ -728,7 +737,7 @@ public void keyPressed(KeyEvent e) {
             System.exit(0);
             break;
             // Dashing logic
-            case KeyEvent.VK_E:
+            case KeyEvent.VK_SPACE:
             if (!isDashing) {
                 isDashing = true;
                 dashTimer = DASH_DURATION;
