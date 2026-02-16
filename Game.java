@@ -37,6 +37,10 @@ public class Game extends JPanel implements KeyListener {
     private int wallStickTimer = 0;
     private final int MAX_STICK_TIME = 15;
 
+    private boolean isDashing = false;
+    private int dashTimer = 0;
+    private final int DASH_DURATION = 15; // frames
+
     private int camX = 0;
     private int camY = 0;
 
@@ -315,7 +319,7 @@ public class Game extends JPanel implements KeyListener {
 
                     // 2. Determine push direction
                     // If enemy is to the left of player, push player right, and vice versa
-                    int pushPower = 10;
+                    int pushPower = 5;
                     if (e.getX() < player.getX()) {
                         player.setXVelocity(pushPower); // Knockback
                         player.setX(player.getX() + 5); // Physical nudge to prevent sticking
@@ -416,6 +420,30 @@ public class Game extends JPanel implements KeyListener {
                 }
             }
 
+            // Dashing logic 
+            if (isDashing) {
+                dashTimer--;
+                if (dashTimer <= 0) isDashing = false;
+
+                for (Enemy e : enemies) {
+                    if (e.getHurtTimer() <= 0 && player.getBounds().intersects(e.getBounds())) {
+                        // 1. Damage Enemy
+                        e.takeDamage(1); 
+                        
+                        // 2. Knockback Enemy
+                        int knockbackDir = (player.getX() < e.getX()) ? 1 : -1;
+                        e.setXVelocity(knockbackDir * 5);
+                        e.setYVelocity(-5); // Pop them up slightly
+                        
+                        // 3. Screen Shake for impact
+                        shakeIntensity = 5;
+                        
+                        // 4. End dash on hit (optional)
+                        isDashing = false; 
+                    }
+                }
+            }
+
             if (player.getY() > 2000) { // Safety net if they miss a death zone
                 respawnPlayer();
             }
@@ -448,6 +476,8 @@ public class Game extends JPanel implements KeyListener {
 
     private void updateEnemies() {
         for (Enemy e : enemies) {
+            e.tickHurtTimer();
+
             // 1. Gravity
             e.setYVelocity(e.getYVelocity() + GRAVITY);
             e.setY(e.getY() + e.getYVelocity());
@@ -465,8 +495,17 @@ public class Game extends JPanel implements KeyListener {
             }
 
             // 3. Horizontal Movement
-            int speed = e.isMovingRight() ? 3 : -3;
-            e.setX(e.getX() + speed);
+            if (e.getHurtTimer() <= 0) {
+                int speed = e.isMovingRight() ? 3 : -3;
+                e.setX(e.getX() + speed);
+            }else{
+                // Set friciton so knockback eventually stops
+                e.setXVelocity((int)(e.getXVelocity() * 0.9)); 
+                e.setX(e.getX() + e.getXVelocity());
+
+                // If they stop moving fast enough, reset velocity to 0
+                if (Math.abs(e.getXVelocity()) < 1) e.setXVelocity(0);
+            }
 
             // 4. Wall & Boundary Collision (Bounce)
             for (Platform p : platforms) {
@@ -585,6 +624,15 @@ public class Game extends JPanel implements KeyListener {
         g.setColor(Color.CYAN);
         for (Enemy e : enemies) {
             g.fillRect(e.getX(), e.getY(), e.getWidth(), e.getHeight());
+
+            // Draw Health Bar if damaged
+            // if (e.getHealth() < e.getMaxHealth()) {
+            //     g.setColor(Color.GRAY);
+            //     g.fillRect(e.getX(), e.getY() - 15, e.getWidth(), 5); // Background
+            //     g.setColor(Color.GREEN);
+            //     int healthWidth = (int)((double)e.getHealth() / e.getMaxHealth() * e.getWidth());
+            //     g.fillRect(e.getX(), e.getY() - 15, healthWidth, 5); // Current Health
+            // }
         }
         g2d.setPaintMode(); // Reset to normal briefly
 
@@ -679,6 +727,17 @@ public void keyPressed(KeyEvent e) {
             // stop the game
             System.exit(0);
             break;
+            // Dashing logic
+            case KeyEvent.VK_E:
+            if (!isDashing) {
+                isDashing = true;
+                dashTimer = DASH_DURATION;
+                // Dash in the direction of current movement, or right by default
+                int dashDir = (player.getXVelocity() >= 0) ? 1 : -1;
+                player.setXVelocity(dashDir * 15); // High speed burst
+                player.setYVelocity(0); // Optional: hover slightly while dashing
+            }
+            break;
     }
 }
 
@@ -697,7 +756,8 @@ public void keyReleased(KeyEvent e) {
         case KeyEvent.VK_D:
             rightPressed = false;
             break;
-    }
+
+        }
 }
 
 // logic for seeing if the player character is on the "ground". currently the game window border is the ground.

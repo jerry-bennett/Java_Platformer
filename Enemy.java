@@ -6,6 +6,9 @@ public class Enemy {
     private int yVelocity = 0;
     private boolean movingRight = true;
     private int startX, startY;
+    private int health = 3;
+    private int maxHealth = 3;
+    private int hurtTimer = 0;
 
     public Enemy(int x, int y, int width, int height) {
         this.x = x;
@@ -21,6 +24,11 @@ public class Enemy {
         this.y = startY;
         this.yVelocity = 0;
     }
+
+    public void takeDamage(int damage) {
+        this.health -= damage;
+        this.hurtTimer = 20; // Stun them for 20 frames
+    }
     // --- GETTERS AND SETTERS ---
     public int getX() { return x; }
     public void setX(int x) { this.x = x; }
@@ -34,6 +42,11 @@ public class Enemy {
     public void setYVelocity(int yVelocity) { this.yVelocity = yVelocity; }
     public boolean isMovingRight() { return movingRight; }
     public void setMovingRight(boolean movingRight) { this.movingRight = movingRight; }
+    public int getHealth() { return health; }
+    public int getMaxHealth() { return maxHealth; }
+    public int getHurtTimer() { return hurtTimer; }
+
+    public void tickHurtTimer() { if(hurtTimer > 0) hurtTimer--; }
 
     public Rectangle getBounds() { return new Rectangle(x, y, width, height); }
     
