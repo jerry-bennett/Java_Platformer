@@ -17,7 +17,6 @@ public class Game extends JPanel implements KeyListener {
     private int coyoteCounter = 0;
     private final int COYOTE_TIME_MAX = 10;
     private boolean isWallGrabbing = false;
-    private Platform currentWall = null;
 
     private final int JUMP_SPEED = 15;
     private final int MOVE_SPEED = 5;
@@ -25,7 +24,7 @@ public class Game extends JPanel implements KeyListener {
     private int levelWidth = 0;
     private boolean leftPressed = false;
     private boolean rightPressed = false;
-    private LevelEndRectangle levelEndRectangle = null;
+    private LevelEndRectangle levelEndRectangle = new LevelEndRectangle(1000, 0, 50, 500);
     private Player player = new Player(50, 50, 50, 50); // adjust the values as needed
 
     private BufferedImage levelBackground; // Distant, blurred, parallaxed
@@ -54,9 +53,6 @@ public class Game extends JPanel implements KeyListener {
 
     private int bgOffsetX = 0;
     private int bgOffsetY = 0;
-
-    private int fgOffsetX = 0;
-    private int fgOffsetY = 0;
 
     private int spawnX;
     private int spawnY;
@@ -127,9 +123,6 @@ public class Game extends JPanel implements KeyListener {
 
             JSONTokener tokener = new JSONTokener(inputStream);
             JSONObject root = new JSONObject(tokener);
-            this.levelWidth = root.getInt("width") * root.getInt("tilewidth");
-            this.levelHeight = root.getInt("height") * root.getInt("tileheight");
-            System.out.println("Level Width: " + levelWidth);
             JSONArray layers = root.getJSONArray("layers");
 
             for (int i = 0; i < layers.length(); i++) {
@@ -143,20 +136,24 @@ public class Game extends JPanel implements KeyListener {
                 File file = new File(imagePath);
                 String fileName = file.getName();
 
+                // Read the offsets from the JSON (Tiled uses these keys)
+                int offX = layer.optInt("offsetx", 0);
+                int offY = layer.optInt("offsety", 0);
+
                 try {
                     //read background image layer
                     String imageResourcePath = "/Levels/level" + currentLevelNumber + "/" + fileName;
                     BufferedImage img = ImageIO.read(getClass().getResourceAsStream(imageResourcePath));
-                    if (layerName.equals("background")) {
+                    if (layerName.contains("background")) {
+                        // Apply a blur to the background only
                         levelBackground = blurImage(img);
-                        bgOffsetY = layer.optInt("offsety", 0);
-                        bgOffsetX = layer.optInt("offsetx", 0);
-                    }else {
+                        bgOffsetY = offY;
+                        bgOffsetX = offX;
+                    } else {
+                        // Foreground stays sharp
                         levelForeground = img;
-                        fgOffsetX = layer.optInt("offsetx", 0);
-                        fgOffsetY = layer.optInt("offsety", 0);
-                        System.out.println("Background Y Offset: " + bgOffsetY);
-                        System.out.println("Foreground Y Offset: " + fgOffsetY);
+                        bgOffsetY = offY;
+                        bgOffsetX = offX;
                         System.out.println("Loaded Foreground: " + fileName);
                     }
                 } catch (Exception e) {
@@ -175,21 +172,9 @@ public class Game extends JPanel implements KeyListener {
                         int width = obj.getInt("width");
                         int height = obj.getInt("height");
 
-                        //debugging:
-                        String objName = obj.optString("name", "platform");
-
                         if (obj.optString("name").equalsIgnoreCase("death")) {
                             deathZones.add(new Rectangle(x, y, width, height));
                             continue; 
-                        }
-
-                        if (obj.optString("name").equalsIgnoreCase("wall")) {
-                            // You could create a specific 'Wall' class, or just add a boolean to Platform
-                            Platform wall = new Platform(x, y, width, height);
-                            wall.setIsClimbable(true); // You'll need to add this field to your Platform class
-                            platforms.add(wall);
-                            wall.setLabel("WALL");
-                            continue;
                         }
 
                         if (obj.optString("name").equalsIgnoreCase("enemy")) {
@@ -347,32 +332,30 @@ public class Game extends JPanel implements KeyListener {
             // movement
             // 1. Handle X Movement
             isWallGrabbing = false;
-            currentWall = null;
 
             // Apply friction if no keys are pressed
-            if (!leftPressed && !rightPressed && jumpLockoutTimer <= 0) {
+            if (!leftPressed && !rightPressed) {
                 player.setXVelocity((int)(player.getXVelocity() * 0.8)); // 0.8 is the friction coefficient
                 if (Math.abs(player.getXVelocity()) < 1) player.setXVelocity(0);
             }
             player.setX(player.getX() + player.getXVelocity());
-
             for (Platform platform : platforms) {
                 if (player.getBounds().intersects(platform.getBounds())) {
                     if (player.getXVelocity() > 0) {
                         player.setX(platform.getX() - player.getWidth());
-                        player.setXVelocity(0);
+                        // AUTO-STICK:
+                        if (!onGround){
+                            isWallGrabbing = true;
+                            wallStickTimer = MAX_STICK_TIME;
+                            createDust(player.getX(), player.getY() + player.getHeight()/2, 5);
+                        }  
                     } else if (player.getXVelocity() < 0) {
                         player.setX(platform.getX() + platform.getWidth());
-                        player.setXVelocity(0);
-                    }
-                    if (platform.isClimbable() && !onGround) {
-                        isWallGrabbing = true;
-                        wallStickTimer = MAX_STICK_TIME;
-                        currentWall = platform;
-                        // Only create dust if we just hit the wall
-                        if (Math.abs(player.getXVelocity()) > 1) {
+                        if (!onGround){
+                            isWallGrabbing = true;
+                            wallStickTimer = MAX_STICK_TIME;
                             createDust(player.getX(), player.getY() + player.getHeight()/2, 5);
-                        }
+                        } 
                     }
                 }
             }
@@ -382,7 +365,7 @@ public class Game extends JPanel implements KeyListener {
             }
             // 2. Handle Y Movement & Gravity
             if (isWallGrabbing && player.getYVelocity() > 0) {
-                player.setYVelocity(0); // Slow slide
+                player.setYVelocity(2); // Slow slide
             } else {
                 player.setYVelocity(player.getYVelocity() + GRAVITY);
             }
@@ -441,7 +424,7 @@ public class Game extends JPanel implements KeyListener {
             int targetX = player.getX() - (getWidth() / 2);
             int targetY = player.getY() - (getHeight() / 2);
 
-            // 2. Apply Vertical and Horizontal Clamping
+            // 2. Apply Vertical and Horizontal Clamping (from our last step)
             if (targetX < 0) targetX = 0;
             if (targetX > levelWidth - getWidth()) targetX = levelWidth - getWidth();
 
@@ -451,6 +434,7 @@ public class Game extends JPanel implements KeyListener {
             }
 
             // 3. THE SMOOTHING (LERP)
+            // We move the camera a small fraction of the distance toward the target
             camX += (targetX - camX) * cameraSmoothing;
             camY += (targetY - camY) * cameraSmoothing;
 
@@ -589,17 +573,6 @@ public class Game extends JPanel implements KeyListener {
 
         // --- 2. DRAW THE PHYSICAL WORLD (Full Speed) ---
         g2d.translate(-camX, -camY);
-
-        //DEBUG PLATFORMS
-        // g.setColor(Color.WHITE);
-        // g.setFont(new Font("Arial", Font.BOLD, 12)); // Make it readable
-        // g.setColor(Color.WHITE);
-        // for (Platform p : platforms) {
-        //     g.drawRect(p.getX(), p.getY(), p.getWidth(), p.getHeight());
-        //     // Draw the label
-        //     g.drawString("TYPE: " + p.getLabel(), p.getX() + 5, p.getY() + 20);
-        //     g.drawString("SIZE: " + p.getWidth() + "x" + p.getHeight(), p.getX() + 5, p.getY() + 35);
-        // }
         Composite originalComp = g2d.getComposite();
 
         // --- PASS 1: Particles & Enemies ---
@@ -645,7 +618,7 @@ public class Game extends JPanel implements KeyListener {
 
         // 3. DRAW FOREGROUND
         if (levelForeground != null) {
-            g.drawImage(levelForeground, fgOffsetX, fgOffsetY, null);
+            g.drawImage(levelForeground, bgOffsetX, bgOffsetY, null);
         }
 
         g2d.translate(camX, camY); // Reset for next frame
@@ -677,20 +650,18 @@ public void keyPressed(KeyEvent e) {
                     coyoteCounter = 0; // Prevent double jumping in mid-air
                     SoundManager.playSound("jump");
             }
-            else if (isWallGrabbing && currentWall != null) {
+            else if (isWallGrabbing) {
                 // Wall Jump!
                 player.setYVelocity(-JUMP_SPEED);
                 jumpLockoutTimer = 15;
-                // Check player position relative to the wall to determine jump direction
-                // If player center is left of wall center, jump Left
-                if (player.getX() + (player.getWidth()/2) < currentWall.getX()) {
-                    player.setXVelocity(-MOVE_SPEED * 2);
-                    lockoutDirection = 1; // Prevent moving back into wall immediately
-                } else {
-                    player.setXVelocity(MOVE_SPEED * 2);
+                // Kick the player away from the wall
+                if (leftPressed) {
+                    player.setXVelocity(MOVE_SPEED * 2); 
                     lockoutDirection = -1;
+                } else if (rightPressed) {
+                    player.setXVelocity(-MOVE_SPEED * 2);
+                    lockoutDirection = 1;
                 }
-                
                 isWallGrabbing = false;
                 wallStickTimer = 0;
                 SoundManager.playSound("jump");
@@ -729,7 +700,7 @@ public void keyReleased(KeyEvent e) {
     }
 }
 
-// logic for seeing if the player character is on the "ground".
+// logic for seeing if the player character is on the "ground". currently the game window border is the ground.
 private boolean checkOnGround() {
     // Check window floor first
     if (player.getY() + player.getHeight() >= getHeight() - 1) {
