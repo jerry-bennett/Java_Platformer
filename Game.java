@@ -17,6 +17,7 @@ public class Game extends JPanel implements KeyListener {
     private int coyoteCounter = 0;
     private final int COYOTE_TIME_MAX = 10;
     private boolean isWallGrabbing = false;
+    private Font dialogFont;
 
     private final int JUMP_SPEED = 15;
     private final int MOVE_SPEED = 5;
@@ -31,6 +32,7 @@ public class Game extends JPanel implements KeyListener {
     private BufferedImage levelForeground; // Close, sharp, moves 1:1 with player
 
     private List<Platform> platforms = new ArrayList<>();
+    private List<Interactable> interactables = new ArrayList<>();
 
     private int currentLevelNumber = 1;
 
@@ -79,6 +81,7 @@ public class Game extends JPanel implements KeyListener {
     private int particleTimer = 0;
 
     public Game(String levelFilePath) {
+        dialogFont = loadCustomFont("/fonts/Kilo.otf", 14f);
         setFocusable(true);
         setPreferredSize(new Dimension(500, 500));
         addKeyListener(this);
@@ -207,6 +210,24 @@ public class Game extends JPanel implements KeyListener {
                             continue; // Skip adding this to the platforms list
                         }
 
+                        if (obj.optString("name").equalsIgnoreCase("interact")) {
+                            String msg = "Press E to interact"; // Default
+                            
+                            // Tiled properties are usually in an array: [{"name": "message", "type": "string", "value": "Hello!"}]
+                            if (obj.has("properties")) {
+                                JSONArray props = obj.getJSONArray("properties");
+                                for (int p = 0; p < props.length(); p++) {
+                                    JSONObject prop = props.getJSONObject(p);
+                                    if (prop.getString("name").equalsIgnoreCase("message")) {
+                                        msg = prop.getString("value");
+                                        break;
+                                    }
+                                }
+                            }
+                            interactables.add(new Interactable(x, y, width, height, msg));
+                            continue;
+                        }
+
                         // Otherwise, it's a normal platform
                         platforms.add(new Platform(x, y, width, height));
                         if (x + width > levelWidth) levelWidth = x + width;
@@ -232,6 +253,20 @@ public class Game extends JPanel implements KeyListener {
             // If there's no level3.json, you've beaten the game!
             System.out.println("No more levels! You win!");
             showWinScreen(); 
+        }
+    }
+
+    public static Font loadCustomFont(String path, float size) {
+        try {
+            // Load the font file from your resources folder
+            InputStream is = Game.class.getResourceAsStream(path);
+            Font font = Font.createFont(Font.TRUETYPE_FONT, is);
+            // Fonts load at size 1 by default; we must derive the intended size
+            return font.deriveFont(size);
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Fallback to a standard font if the file fails to load
+            return new Font("Arial", Font.PLAIN, (int)size);
         }
     }
 
@@ -293,6 +328,19 @@ public class Game extends JPanel implements KeyListener {
             tp.update();
             return tp.alpha <= 0 || tp.size <= 0;
         });
+
+        // Close text window if moving away
+        for (Interactable i : interactables) {
+        // Check distance (e.g., within 100 pixels)
+        double distance = Math.sqrt(Math.pow(player.getX() - i.x, 2) + Math.pow(player.getY() - i.y, 2));
+        
+        if (distance < 100) {
+            i.isPlayerNear = true;
+        } else {
+            i.isPlayerNear = false;
+            i.isDialogOpen = false; // Auto-close if they walk away
+        }
+    }
 
         if (isDead) {
             deathTimer--;
@@ -622,7 +670,7 @@ public class Game extends JPanel implements KeyListener {
         g2d.translate(-camX, -camY);
         Composite originalComp = g2d.getComposite();
 
-        // --- PASS 1: Particles & Enemies ---
+        // --- PASS 1: Particles, Enemies & Interactable Elements ---
         g2d.setXORMode(Color.WHITE);
         for (TrailPoint tp : playerTrails) {
             g.setColor(tp.getColor());
@@ -634,13 +682,19 @@ public class Game extends JPanel implements KeyListener {
             g.fillRect(e.getX(), e.getY(), e.getWidth(), e.getHeight());
 
             // Draw Health Bar if damaged
-            // if (e.getHealth() < e.getMaxHealth()) {
-            //     g.setColor(Color.GRAY);
-            //     g.fillRect(e.getX(), e.getY() - 15, e.getWidth(), 5); // Background
-            //     g.setColor(Color.GREEN);
-            //     int healthWidth = (int)((double)e.getHealth() / e.getMaxHealth() * e.getWidth());
-            //     g.fillRect(e.getX(), e.getY() - 15, healthWidth, 5); // Current Health
-            // }
+            if (e.getHealth() < e.getMaxHealth()) {
+                g.setColor(Color.GRAY);
+                g.fillRect(e.getX(), e.getY() - 15, e.getWidth(), 5); // Background
+                g.setColor(Color.GREEN);
+                int healthWidth = (int)((double)e.getHealth() / e.getMaxHealth() * e.getWidth());
+                g.fillRect(e.getX(), e.getY() - 15, healthWidth, 5); // Current Health
+            }
+        }
+
+        // Interactable
+        g.setColor(Color.ORANGE);
+        for (Interactable i : interactables){
+            g.fillRect(i.x, i.y, i.width, i.height);
         }
         g2d.setPaintMode(); // Reset to normal briefly
 
@@ -676,6 +730,46 @@ public class Game extends JPanel implements KeyListener {
         if (levelForeground != null) {
             g.drawImage(levelForeground, fgOffsetX, fgOffsetY, null);
 
+        }
+
+        // Draw Interact Prompt
+        for (Interactable i : interactables) {
+            if (i.isPlayerNear && !i.isDialogOpen) {
+                g.setColor(Color.WHITE);
+                g.setFont(new Font("Arial", Font.BOLD, 12));
+                g.drawString("[E]", i.x + (i.width/2) - 5, i.y - 10);
+            }
+        }
+
+        // --- DRAW IN SCREEN SPACE (after resetting translate) ---
+        for (Interactable i : interactables) {
+            if (i.isDialogOpen) {
+                g.setFont(dialogFont);
+                FontMetrics fm = g.getFontMetrics();
+                
+                // Calculate dimensions based on text
+                int padding = 15;
+                int textWidth = fm.stringWidth(i.message);
+                int boxW = textWidth + (padding * 2);
+                int boxH = fm.getHeight() + (padding * 2);
+                
+                // Anchor: Center the box horizontally over the interact object
+                int boxX = i.x + (i.width / 2) - (boxW / 2);
+                int boxY = i.y - boxH - 10; // 10px gap above the object
+
+                // 1. Draw the Background Box
+                g.setColor(new Color(0, 0, 0, 180));
+                g.fillRoundRect(boxX, boxY, boxW, boxH, 15, 15); 
+
+                // 2. Draw the Border
+                g.setColor(Color.WHITE);
+                g.drawRoundRect(boxX, boxY, boxW, boxH, 15, 15);
+
+                // 3. Draw the Text
+                g.setColor(Color.WHITE);
+                // fm.getAscent() ensures text is vertically aligned correctly
+                g.drawString(i.message, boxX + padding, boxY + padding + fm.getAscent());
+            }
         }
 
         g2d.translate(camX, camY); // Reset for next frame
@@ -745,6 +839,13 @@ public void keyPressed(KeyEvent e) {
                 int dashDir = (player.getXVelocity() >= 0) ? 1 : -1;
                 player.setXVelocity(dashDir * 15); // High speed burst
                 player.setYVelocity(0); // Optional: hover slightly while dashing
+            }
+            break;
+            case KeyEvent.VK_E:
+            for (Interactable i : interactables) {
+                if (i.isPlayerNear) {
+                    i.isDialogOpen = !i.isDialogOpen; // Toggle the box
+                }
             }
             break;
     }

@@ -338,6 +338,40 @@
                  "width":1856,
                  "x":1984,
                  "y":416
+                }, 
+                {
+                 "height":64,
+                 "id":53,
+                 "name":"interact",
+                 "properties":[
+                        {
+                         "name":"message",
+                         "type":"string",
+                         "value":"W to jump."
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":64,
+                 "x":928,
+                 "y":320
+                }, 
+                {
+                 "height":64,
+                 "id":57,
+                 "name":"interact",
+                 "properties":[
+                        {
+                         "name":"message",
+                         "type":"string",
+                         "value":"Spacebar to leap forward and do damage."
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":64,
+                 "x":1792,
+                 "y":352
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -346,7 +380,7 @@
          "y":0
         }],
  "nextlayerid":11,
- "nextobjectid":53,
+ "nextobjectid":58,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
