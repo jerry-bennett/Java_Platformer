@@ -82,6 +82,26 @@ public class Game extends JPanel implements KeyListener {
 
     private int bobCounter = 0;
 
+    // Wrapping text logic
+    private List<String> wrapText(String text, FontMetrics fm, int maxWidth) {
+        List<String> lines = new ArrayList<>();
+        String[] words = text.split(" ");
+        StringBuilder currentLine = new StringBuilder();
+
+        for (String word : words) {
+            // Check if adding the next word exceeds maxWidth
+            if (fm.stringWidth(currentLine + word) < maxWidth) {
+                if (currentLine.length() > 0) currentLine.append(" ");
+                currentLine.append(word);
+            } else {
+                lines.add(currentLine.toString());
+                currentLine = new StringBuilder(word);
+            }
+        }
+        if (currentLine.length() > 0) lines.add(currentLine.toString());
+        return lines;
+    }
+
     public Game(String levelFilePath) {
         dialogFont = loadCustomFont("/fonts/Vanosky.otf", 14f);
         setFocusable(true);
@@ -96,6 +116,7 @@ public class Game extends JPanel implements KeyListener {
 
         // PRE-LOAD SOUNDS
         SoundManager.loadSound("jump", "/sfx/jump.wav");
+        SoundManager.loadSound("textBlip", "/sfx/textBlip.wav");
     }
 
     private BufferedImage blurImage(BufferedImage src) {
@@ -351,13 +372,21 @@ public class Game extends JPanel implements KeyListener {
                 if (i.typeTimer >= i.TYPE_SPEED) {
                     i.visibleChars++;
                     i.typeTimer = 0;
-                    // Optional: Play a tiny "blip" sound here!
+                    //Sound effect
+                    //SoundManager.playSound("textBlip.wav");
+                }
+            } else {
+                // Text is finished! Start the prompt delay timer
+                if (i.promptDelayTimer < i.PROMPT_DELAY_MAX) {
+                    i.promptDelayTimer++;
                 }
             }
         } else {
             // Reset so it re-types next time you open it
             i.visibleChars = 0;
             i.typeTimer = 0;
+            i.visibleChars = 0;
+            i.promptDelayTimer = 0;
         }
     }
 
@@ -660,6 +689,9 @@ public class Game extends JPanel implements KeyListener {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
 
+        // --- ENABLE TEXT ALIASING ---
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
         int currentShakeX = 0;
         int currentShakeY = 0;
@@ -766,50 +798,70 @@ public class Game extends JPanel implements KeyListener {
                 g.setFont(dialogFont);
                 FontMetrics fm = g.getFontMetrics();
                 
-                // Calculate dimensions based on text
                 int padding = 15;
-                int textWidth = fm.stringWidth(i.message);
-                int boxW = textWidth + (padding * 2);
-                int boxH = fm.getHeight() + (padding * 2);
-                int textX = boxW + padding;
-                int textY = boxH + padding + fm.getAscent();
-                int tailW = 12;
-                int tailH = 10;
-                int centerX = boxW + (boxW / 2);
-                int bottomY = boxH + boxH;
-
-                // Tail points
-                int[] xPoints = {centerX - tailW/2, centerX + tailW/2, centerX};
-                int[] yPoints = {bottomY, bottomY, bottomY + tailH};
-
-                // Bobbing math
-                int bobOffset = (int)(Math.sin(bobCounter * 0.05) * 5);
+                int maxBoxWidth = 300; // Maximum width before wrapping
                 
-                // Anchor: Center the box horizontally over the interact object
+                // 1. Get wrapped lines
+                List<String> lines = wrapText(i.message, fm, maxBoxWidth - (padding * 2));
+                
+                // 2. Calculate final box dimensions
+                int longestLineWidth = 0;
+                for (String line : lines) {
+                    longestLineWidth = Math.max(longestLineWidth, fm.stringWidth(line));
+                }
+                
+                int boxW = longestLineWidth + (padding * 2);
+                int boxH = (lines.size() * fm.getHeight()) + (padding * 2);
+                
+                // Positioning with Bobbing
+                int bobOffset = (int)(Math.sin(bobCounter * 0.05) * 5);
                 int boxX = i.x + (i.width / 2) - (boxW / 2);
-                int boxY = i.y - boxH - 10 + bobOffset; // 10px gap above the object
+                int boxY = i.y - boxH - 25 + bobOffset;
 
-                // 1. Draw the Background Box
+                // Draw Box and Tail (same as before...)
                 g.setColor(new Color(0, 0, 0, 180));
-                g.fillRoundRect(boxX, boxY, boxW, boxH, 15, 15); 
-                g.fillPolygon(xPoints, yPoints, 3);
+                g.fillRoundRect(boxX, boxY, boxW, boxH, 15, 15);
+                // [Add your tail drawing code here]
 
-                // 2. Draw the Border
-                g.setColor(Color.WHITE);
-                g.drawRoundRect(boxX, boxY, boxW, boxH, 15, 15);
-                g.drawLine(centerX - tailW/2, bottomY, centerX, bottomY + tailH);
-                g.drawLine(centerX + tailW/2, bottomY, centerX, bottomY + tailH);
+                // 3. Draw Typewriter Text Line-by-Line
+                int totalCharsDisplayed = 0;
+                for (int row = 0; row < lines.size(); row++) {
+                    String line = lines.get(row);
+                    int yPos = boxY + padding + fm.getAscent() + (row * fm.getHeight());
+                    
+                    // How many characters of THIS line should be visible?
+                    int charsLeft = i.visibleChars - totalCharsDisplayed;
+                    if (charsLeft <= 0) break; // Nothing left to type for this row or below
+                    
+                    int endIdx = Math.min(charsLeft, line.length());
+                    String visiblePart = line.substring(0, endIdx);
 
-                // 3. Draw the Text
-                String visibleText = i.message.substring(0, i.visibleChars);
+                    // Draw Shadow
+                    g.setColor(new Color(0, 0, 0, 150));
+                    g.drawString(visiblePart, boxX + padding + 2, yPos + 2);
+                    // Draw Text
+                    g.setColor(Color.WHITE);
+                    g.drawString(visiblePart, boxX + padding, yPos);
+                    
+                    totalCharsDisplayed += line.length() + 1; // +1 for the space we split on
+                }
 
-                // Shadow first
-                g.setColor(new Color(0, 0, 0, 150)); // Semi-transparent black
-                g.drawString(i.message, textX + 2, textY + 2);
-
-                g.setColor(Color.WHITE);
-                // fm.getAscent() ensures text is vertically aligned correctly
-                g.drawString(visibleText, boxX + padding, boxY + padding + fm.getAscent());
+                // Prompt user to close dialog box
+                if (i.visibleChars >= i.message.length() && i.promptDelayTimer >= i.PROMPT_DELAY_MAX) {
+                    float alpha = (float) (Math.sin(bobCounter * 0.1) * 0.5 + 0.5);
+                    g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+                    
+                    g.setFont(dialogFont.deriveFont(10f)); // Smaller font for the prompt
+                    String prompt = "[E] to close >";
+                    int promptX = boxX + boxW - fm.stringWidth(prompt) + 10;
+                    int promptY = boxY + boxH - 8;
+                    
+                    g.setColor(Color.WHITE);
+                    g.drawString(prompt, promptX, promptY);
+                    
+                    // Reset alpha so it doesn't affect other drawing
+                    g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+                }
             }
         }
 

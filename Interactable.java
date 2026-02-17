@@ -8,6 +8,8 @@ public class Interactable {
     public int visibleChars = 0;
     public int typeTimer = 0;
     public final int TYPE_SPEED = 2;
+    public int promptDelayTimer = 0;
+    public final int PROMPT_DELAY_MAX = 60;
 
     public Interactable(int x, int y, int width, int height, String message) {
         this.x = x;
