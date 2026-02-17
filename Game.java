@@ -80,8 +80,10 @@ public class Game extends JPanel implements KeyListener {
 
     private int particleTimer = 0;
 
+    private int bobCounter = 0;
+
     public Game(String levelFilePath) {
-        dialogFont = loadCustomFont("/fonts/Kilo.otf", 14f);
+        dialogFont = loadCustomFont("/fonts/Vanosky.otf", 14f);
         setFocusable(true);
         setPreferredSize(new Dimension(500, 500));
         addKeyListener(this);
@@ -304,6 +306,7 @@ public class Game extends JPanel implements KeyListener {
     private void move() {
         updateEnemies();
         particleTimer++;
+        bobCounter++;
         if (jumpLockoutTimer > 0) jumpLockoutTimer--;
 
         if (shakeIntensity > 0) {
@@ -339,6 +342,22 @@ public class Game extends JPanel implements KeyListener {
         } else {
             i.isPlayerNear = false;
             i.isDialogOpen = false; // Auto-close if they walk away
+        }
+
+        // Typewriter logic
+        if (i.isDialogOpen) {
+            if (i.visibleChars < i.message.length()) {
+                i.typeTimer++;
+                if (i.typeTimer >= i.TYPE_SPEED) {
+                    i.visibleChars++;
+                    i.typeTimer = 0;
+                    // Optional: Play a tiny "blip" sound here!
+                }
+            }
+        } else {
+            // Reset so it re-types next time you open it
+            i.visibleChars = 0;
+            i.typeTimer = 0;
         }
     }
 
@@ -752,23 +771,45 @@ public class Game extends JPanel implements KeyListener {
                 int textWidth = fm.stringWidth(i.message);
                 int boxW = textWidth + (padding * 2);
                 int boxH = fm.getHeight() + (padding * 2);
+                int textX = boxW + padding;
+                int textY = boxH + padding + fm.getAscent();
+                int tailW = 12;
+                int tailH = 10;
+                int centerX = boxW + (boxW / 2);
+                int bottomY = boxH + boxH;
+
+                // Tail points
+                int[] xPoints = {centerX - tailW/2, centerX + tailW/2, centerX};
+                int[] yPoints = {bottomY, bottomY, bottomY + tailH};
+
+                // Bobbing math
+                int bobOffset = (int)(Math.sin(bobCounter * 0.05) * 5);
                 
                 // Anchor: Center the box horizontally over the interact object
                 int boxX = i.x + (i.width / 2) - (boxW / 2);
-                int boxY = i.y - boxH - 10; // 10px gap above the object
+                int boxY = i.y - boxH - 10 + bobOffset; // 10px gap above the object
 
                 // 1. Draw the Background Box
                 g.setColor(new Color(0, 0, 0, 180));
                 g.fillRoundRect(boxX, boxY, boxW, boxH, 15, 15); 
+                g.fillPolygon(xPoints, yPoints, 3);
 
                 // 2. Draw the Border
                 g.setColor(Color.WHITE);
                 g.drawRoundRect(boxX, boxY, boxW, boxH, 15, 15);
+                g.drawLine(centerX - tailW/2, bottomY, centerX, bottomY + tailH);
+                g.drawLine(centerX + tailW/2, bottomY, centerX, bottomY + tailH);
 
                 // 3. Draw the Text
+                String visibleText = i.message.substring(0, i.visibleChars);
+
+                // Shadow first
+                g.setColor(new Color(0, 0, 0, 150)); // Semi-transparent black
+                g.drawString(i.message, textX + 2, textY + 2);
+
                 g.setColor(Color.WHITE);
                 // fm.getAscent() ensures text is vertically aligned correctly
-                g.drawString(i.message, boxX + padding, boxY + padding + fm.getAscent());
+                g.drawString(visibleText, boxX + padding, boxY + padding + fm.getAscent());
             }
         }
 
@@ -844,7 +885,13 @@ public void keyPressed(KeyEvent e) {
             case KeyEvent.VK_E:
             for (Interactable i : interactables) {
                 if (i.isPlayerNear) {
-                    i.isDialogOpen = !i.isDialogOpen; // Toggle the box
+                    if (i.isDialogOpen && i.visibleChars < i.message.length()) {
+                        // If still typing, jump to the end
+                        i.visibleChars = i.message.length();
+                    } else {
+                        // Otherwise toggle the box
+                        i.isDialogOpen = !i.isDialogOpen;
+                    }
                 }
             }
             break;

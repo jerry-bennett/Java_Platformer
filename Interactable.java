@@ -5,6 +5,9 @@ public class Interactable {
     public String message;
     public boolean isPlayerNear = false;
     public boolean isDialogOpen = false;
+    public int visibleChars = 0;
+    public int typeTimer = 0;
+    public final int TYPE_SPEED = 2;
 
     public Interactable(int x, int y, int width, int height, String message) {
         this.x = x;
