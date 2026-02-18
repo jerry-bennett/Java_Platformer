@@ -13,7 +13,7 @@ import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 
-import main.java.com.garbageforlust.game.Interactable;
+import com.garbageforlust.game.Interactable;
 
 public class Main extends ApplicationAdapter {
     private ShapeRenderer shapeRenderer;
@@ -45,6 +45,12 @@ public class Main extends ApplicationAdapter {
     private BitmapFont font;
     private Array<Interactable> interactables;
     public float bobCounter = 0;
+
+    // Squish variables
+    private float playerScaleX = 1f;
+    private float playerScaleY = 1f;
+    private final float LERP_SPEED = 10f;
+    private boolean wasFalling = false;
 
     @Override
     public void create() {
@@ -130,6 +136,18 @@ public class Main extends ApplicationAdapter {
     public void render() {
         float dt = Gdx.graphics.getDeltaTime();
 
+        // Smoothly return to 1.0 scale (squish)
+        playerScaleX += (1f - playerScaleX) * LERP_SPEED * dt;
+        playerScaleY += (1f - playerScaleY) * LERP_SPEED * dt;
+
+        System.out.println("Player Scale X: " + playerScaleX);
+        System.out.println("Player Scale Y: " + playerScaleY);
+
+        // Track falling state for the landing squish
+        if (!onGround) {
+            wasFalling = true;
+        }
+
         // DASH INPUT
         if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && dashCooldown <= 0) {
             isDashing = true;
@@ -163,6 +181,10 @@ public class Main extends ApplicationAdapter {
                 yVelocity = JUMP_SPEED;
                 onGround = false;
                 coyoteCounter = 0;
+
+                // Stretch UP on jump
+                playerScaleX = 0.8f; 
+                playerScaleY = 1.3f;
             }
 
             // Wall Grab & Gravity
@@ -194,8 +216,22 @@ public class Main extends ApplicationAdapter {
         // Draw Platforms, Player, and Enemies
         shapeRenderer.setColor(Color.GRAY);
         for (Rectangle p : platforms) shapeRenderer.rect(p.x, p.y, p.width, p.height);
+        
+        // Player
         shapeRenderer.setColor(Color.RED);
-        shapeRenderer.rect(player.x, player.y, player.width, player.height);
+
+        // Calculate visual dimensions
+        float visWidth = player.width * playerScaleX;
+        float visHeight = player.height * playerScaleY;
+
+        // Offset the X and Y so the squish happens from the bottom-center
+        float visX = player.x + (player.width - visWidth) / 2f;
+        float visY = (player.y + player.height) - visHeight;
+
+        // Draw the player
+        shapeRenderer.rect(visX, visY, visWidth, visHeight);
+
+        // Enemies
         shapeRenderer.setColor(Color.YELLOW);
         for (Enemy e : enemies) shapeRenderer.rect(e.bounds.x, e.bounds.y, e.bounds.width, e.bounds.height);
 
@@ -326,11 +362,18 @@ public class Main extends ApplicationAdapter {
                     if (xVelocity > 0) player.x = p.x - player.width;
                     else if (xVelocity < 0) player.x = p.x + p.width;
                 } else {
-                    if (yVelocity > 0) {
+                    if (yVelocity > 0) { // Falling Down
+                        // TRIGGER ONLY ONCE ON LANDING
+                        if (wasFalling && yVelocity > 5f) { 
+                            playerScaleX = 1.4f; 
+                            playerScaleY = 0.7f;
+                            wasFalling = false; // Prevent re-squishing every frame
+                        }
+                        
                         player.y = p.y - player.height;
-                        yVelocity = 0;
                         onGround = true;
-                    } else if (yVelocity < 0) {
+                        yVelocity = 0;
+                    } else if (yVelocity < 0) { // Hitting ceiling
                         player.y = p.y + p.height;
                         yVelocity = 0;
                     }

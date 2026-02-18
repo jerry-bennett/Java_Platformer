@@ -1,4 +1,4 @@
-package main.java.com.garbageforlust.game;
+package com.garbageforlust.game;
 
 import com.badlogic.gdx.math.Rectangle;
 
