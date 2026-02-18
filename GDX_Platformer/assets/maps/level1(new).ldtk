@@ -11,7 +11,7 @@
 	"iid": "a6a6ecf0-fa90-11f0-9567-4594df259ed3",
 	"jsonVersion": "1.5.3",
 	"appBuildId": 473703,
-	"nextUid": 11,
+	"nextUid": 12,
 	"identifierStyle": "Capitalize",
 	"toc": [],
 	"worldLayout": "Free",
@@ -252,7 +252,7 @@
 			"pivotY": 0,
 			"fieldDefs": [
 				{
-					"identifier": "String",
+					"identifier": "message",
 					"doc": null,
 					"__type": "String",
 					"uid": 10,
@@ -289,6 +289,41 @@
 					"tilesetUid": null
 				}
 			]
+		},
+		{
+			"identifier": "Death",
+			"uid": 11,
+			"tags": [],
+			"exportToToc": false,
+			"allowOutOfBounds": false,
+			"doc": null,
+			"width": 16,
+			"height": 16,
+			"resizableX": true,
+			"resizableY": true,
+			"minWidth": 16,
+			"maxWidth": null,
+			"minHeight": 16,
+			"maxHeight": null,
+			"keepAspectRatio": false,
+			"tileOpacity": 1,
+			"fillOpacity": 1,
+			"lineOpacity": 1,
+			"hollow": false,
+			"color": "#E4A672",
+			"renderMode": "Rectangle",
+			"showName": true,
+			"tilesetId": null,
+			"tileRenderMode": "FitInside",
+			"tileRect": null,
+			"uiTileRect": null,
+			"nineSliceBorders": [],
+			"maxCount": 0,
+			"limitScope": "PerLevel",
+			"limitBehavior": "MoveLastOne",
+			"pivotX": 0,
+			"pivotY": 0,
+			"fieldDefs": []
 		}
 	], "tilesets": [
 		{
@@ -404,12 +439,28 @@
 							"height": 16,
 							"defUid": 7,
 							"px": [288,704],
-							"fieldInstances": [{ "__identifier": "String", "__type": "String", "__value": "Sup.", "__tile": null, "defUid": 10, "realEditorValues": [{
+							"fieldInstances": [{ "__identifier": "message", "__type": "String", "__value": "Sup", "__tile": null, "defUid": 10, "realEditorValues": [{
 								"id": "V_String",
-								"params": ["Sup."]
+								"params": ["Sup"]
 							}] }],
 							"__worldX": 288,
 							"__worldY": 704
+						},
+						{
+							"__identifier": "Death",
+							"__grid": [0,52],
+							"__pivot": [0,0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#E4A672",
+							"iid": "3bc26b30-fa90-11f0-8c29-f35d5cd7bb29",
+							"width": 1392,
+							"height": 16,
+							"defUid": 11,
+							"px": [0,832],
+							"fieldInstances": [],
+							"__worldX": 0,
+							"__worldY": 832
 						}
 					]
 				},

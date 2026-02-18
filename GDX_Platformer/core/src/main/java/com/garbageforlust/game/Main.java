@@ -112,20 +112,40 @@ public class Main extends ApplicationAdapter {
                         enemies.add(new Enemy(coords[0], coords[1]));
                     }
 
-                    // Load messages
-                    if (name.equals("Message") || name.equals("NPC")) {
-                        String msg = "Default Message"; // Fallback
+                    if (name.equals("NPC")) {
+                        String msg = "Default Message"; 
                         
-                        // Loop through fields to find the one named "message" (or whatever yours is named)
-                        for (JsonValue field : entity.get("fieldInstances")) {
-                            if (field.getString("__identifier").equalsIgnoreCase("message")) {
-                                msg = field.getString("value");
+                        // Get the array of fields
+                        JsonValue fieldInstances = entity.get("fieldInstances");
+
+                        if (fieldInstances != null && fieldInstances.size > 0) {
+                            for (JsonValue field : fieldInstances) {
+                                String id = field.getString("__identifier");
+                                
+                                // DEBUG: This will print every field name found to the console
+                                System.out.println("Found field: " + id);
+
+                                if (id.equalsIgnoreCase("message")) {
+                                    // Let's see the raw JSON of the value node
+                                    JsonValue val = field.get("__value");
+                                    
+                                    if (val != null && !val.isNull()) {
+                                        msg = val.asString();
+                                        System.out.println("Success! Message is: " + msg);
+                                    } else {
+                                        // If we are here, LDtk has 'null' written in the JSON file
+                                        msg = "Empty Value in LDtk";
+                                        System.out.println("Field found, but 'value' is explicitly null in the JSON file.");
+                                    }
+                                }
                             }
+                        } else {
+                            System.out.println("Warning: NPC entity found, but it has NO field instances!");
                         }
 
                         float x = entity.get("px").asFloatArray()[0];
                         float y = entity.get("px").asFloatArray()[1];
-                        interactables.add(new Interactable(x, y, 32, 32, msg));
+                        interactables.add(new Interactable(x, y, 32, 32, msg)); 
                     }
                 }
             }
@@ -139,9 +159,6 @@ public class Main extends ApplicationAdapter {
         // Smoothly return to 1.0 scale (squish)
         playerScaleX += (1f - playerScaleX) * LERP_SPEED * dt;
         playerScaleY += (1f - playerScaleY) * LERP_SPEED * dt;
-
-        System.out.println("Player Scale X: " + playerScaleX);
-        System.out.println("Player Scale Y: " + playerScaleY);
 
         // Track falling state for the landing squish
         if (!onGround) {
