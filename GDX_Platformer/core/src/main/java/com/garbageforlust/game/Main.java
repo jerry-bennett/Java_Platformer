@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.JsonValue; // ADDED THIS IMPORT
 import com.badlogic.gdx.utils.ScreenUtils;
@@ -52,6 +53,13 @@ public class Main extends ApplicationAdapter {
     private final float LERP_SPEED = 10f;
     private boolean wasFalling = false;
 
+    // Death variables
+    private Array<Rectangle> deathZones;
+    private Vector2 respawnPoint; // To remember where the level started
+    private boolean isDead = false;
+    private float deathTimer = 0;
+    private final float DEATH_DELAY = 1.0f; // 1 second wait
+
     @Override
     public void create() {
         shapeRenderer = new ShapeRenderer();
@@ -61,6 +69,9 @@ public class Main extends ApplicationAdapter {
         batch = new SpriteBatch();
         font = new BitmapFont(true);
         interactables = new Array<>();
+
+        deathZones = new Array<>(); 
+        respawnPoint = new Vector2();
 
         player = new Rectangle(100, 100, 50, 50);
         
@@ -106,10 +117,25 @@ public class Main extends ApplicationAdapter {
                     float[] coords = entity.get("px").asFloatArray();
                     
                     if (name.equals("Player_Spawn")) {
-                        player.setPosition(coords[0], coords[1]);
+                        // 1. Get the actual pixel coordinates from LDtk
+                        float spawnX = coords[0];
+                        float spawnY = coords[1];
+
+                        // 2. Move the player rectangle there immediately
+                        player.setPosition(spawnX, spawnY);
+
+                        // 3. Update the respawnPoint vector so it's ready for the death logic
+                        respawnPoint.set(spawnX, spawnY); 
+                        
+                        System.out.println("Spawn Point Set to: " + spawnX + ", " + spawnY);
                     }
                     if (name.equals("Enemy")) {
                         enemies.add(new Enemy(coords[0], coords[1]));
+                    }
+                    if (name.equals("Death")) {
+                        float w = entity.getInt("width");
+                        float h = entity.getInt("height");
+                        deathZones.add(new Rectangle(coords[0], coords[1], w, h));
                     }
 
                     if (name.equals("NPC")) {
@@ -155,6 +181,21 @@ public class Main extends ApplicationAdapter {
     @Override
     public void render() {
         float dt = Gdx.graphics.getDeltaTime();
+
+        if (isDead) {
+            deathTimer -= dt;
+            if (deathTimer <= 0 && Gdx.input.isKeyJustPressed(Input.Keys.ANY_KEY)) {
+                respawnPlayer();
+            }
+            return; // Stop the rest of the movement/physics logic
+        }
+
+        // Check Death Zones
+        for (Rectangle zone : deathZones) {
+            if (player.overlaps(zone)) {
+                triggerDeath();
+            }
+        }
 
         // Smoothly return to 1.0 scale (squish)
         playerScaleX += (1f - playerScaleX) * LERP_SPEED * dt;
@@ -445,6 +486,22 @@ public class Main extends ApplicationAdapter {
             if (i.isDialogOpen) return true;
         }
         return false;
+    }
+
+    private void triggerDeath() {
+        if (!isDead) {
+            isDead = true;
+            deathTimer = DEATH_DELAY;
+            System.out.println("WASTED");
+        }
+    }
+
+    private void respawnPlayer() {
+        isDead = false;
+        player.setPosition(respawnPoint.x, respawnPoint.y);
+        xVelocity = 0;
+        yVelocity = 0;
+        System.out.println("Respawned at: " + respawnPoint);
     }
 
     @Override
