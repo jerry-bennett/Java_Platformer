@@ -10,6 +10,10 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.JsonValue; // ADDED THIS IMPORT
 import com.badlogic.gdx.utils.ScreenUtils;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+
+import main.java.com.garbageforlust.game.Interactable;
 
 public class Main extends ApplicationAdapter {
     private ShapeRenderer shapeRenderer;
@@ -36,11 +40,21 @@ public class Main extends ApplicationAdapter {
     private final float DASH_COOLDOWN_MAX = 0.5f;
     private boolean isDashing = false;
 
+    // Interactable Variables
+    private SpriteBatch batch;
+    private BitmapFont font;
+    private Array<Interactable> interactables;
+    public float bobCounter = 0;
+
     @Override
     public void create() {
         shapeRenderer = new ShapeRenderer();
         camera = new OrthographicCamera();
         camera.setToOrtho(true, 800, 450); 
+
+        batch = new SpriteBatch();
+        font = new BitmapFont(true);
+        interactables = new Array<>();
 
         player = new Rectangle(100, 100, 50, 50);
         
@@ -64,7 +78,7 @@ public class Main extends ApplicationAdapter {
         for (JsonValue layer : layerInstances) {
             String layerName = layer.getString("__identifier");
 
-            // 1. Load Collisions (IntGrid)
+            // Load Collisions (IntGrid)
             if (layerName.equals("IntGrid")) { // Double check this matches your LDtk layer name!
                 int gridSize = layer.getInt("__gridSize");
                 int cWid = layer.getInt("__cWid");
@@ -79,7 +93,7 @@ public class Main extends ApplicationAdapter {
                 }
             }
             
-            // 2. Load Entities
+            // Load Entities
             if (layerName.equals("Entities")) {
                 for (JsonValue entity : layer.get("entityInstances")) {
                     String name = entity.getString("__identifier");
@@ -91,6 +105,22 @@ public class Main extends ApplicationAdapter {
                     if (name.equals("Enemy")) {
                         enemies.add(new Enemy(coords[0], coords[1]));
                     }
+
+                    // Load messages
+                    if (name.equals("Message") || name.equals("NPC")) {
+                        String msg = "Default Message"; // Fallback
+                        
+                        // Loop through fields to find the one named "message" (or whatever yours is named)
+                        for (JsonValue field : entity.get("fieldInstances")) {
+                            if (field.getString("__identifier").equalsIgnoreCase("message")) {
+                                msg = field.getString("value");
+                            }
+                        }
+
+                        float x = entity.get("px").asFloatArray()[0];
+                        float y = entity.get("px").asFloatArray()[1];
+                        interactables.add(new Interactable(x, y, 32, 32, msg));
+                    }
                 }
             }
         }
@@ -100,7 +130,7 @@ public class Main extends ApplicationAdapter {
     public void render() {
         float dt = Gdx.graphics.getDeltaTime();
 
-        // 1. DASH INPUT
+        // DASH INPUT
         if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && dashCooldown <= 0) {
             isDashing = true;
             dashTimer = DASH_DURATION;
@@ -110,7 +140,7 @@ public class Main extends ApplicationAdapter {
             else xVelocity = (xVelocity > 0 ? DASH_SPEED : -DASH_SPEED) * dt;
         }
 
-        // 2. DASH STATE vs NORMAL STATE
+        // DASH STATE vs NORMAL STATE
         if (isDashing) {
             dashTimer -= dt;
             yVelocity = 0; // Freeze Y-axis during dash
@@ -147,13 +177,13 @@ public class Main extends ApplicationAdapter {
             else yVelocity += GRAVITY;
         }
 
-        // 3. APPLY PHYSICS (Always run this)
+        // APPLY PHYSICS
         player.x += xVelocity;
         checkCollisions(true);
         player.y += yVelocity;
         checkCollisions(false);
 
-        // 4. CAMERA & DRAWING
+        // CAMERA & DRAWING
         camera.position.set(player.x + player.width/2, player.y + player.height/2, 0);
         camera.update();
 
@@ -161,22 +191,41 @@ public class Main extends ApplicationAdapter {
         shapeRenderer.setProjectionMatrix(camera.combined);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
-        // 1. Draw Platforms (Grey)
+        // Draw Platforms, Player, and Enemies
         shapeRenderer.setColor(Color.GRAY);
         for (Rectangle p : platforms) shapeRenderer.rect(p.x, p.y, p.width, p.height);
-
-        // 2. Draw Player (Red)
         shapeRenderer.setColor(Color.RED);
         shapeRenderer.rect(player.x, player.y, player.width, player.height);
-
-        // 3. Draw Enemies (Yellow)
         shapeRenderer.setColor(Color.YELLOW);
-        for (Enemy e : enemies) {
-            shapeRenderer.rect(e.bounds.x, e.bounds.y, e.bounds.width, e.bounds.height);
-        }
-        
-        // Now it's safe to end!
+        for (Enemy e : enemies) shapeRenderer.rect(e.bounds.x, e.bounds.y, e.bounds.width, e.bounds.height);
+
+        // CLOSE IT HERE! We are done with basic world shapes.
         shapeRenderer.end();
+
+        //Draw Typewriter
+        bobCounter += dt;
+        for (Interactable i : interactables) {
+            i.update(dt, player);
+            if (i.isPlayerNear && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+                i.isDialogOpen = !i.isDialogOpen;
+                if (i.isDialogOpen) i.visibleChars = 0; 
+            }
+        }
+
+        // Draw the [E] Prompt
+        batch.setProjectionMatrix(camera.combined);
+        batch.begin();
+        for (Interactable i : interactables) {
+            if (i.isPlayerNear && !i.isDialogOpen) {
+                font.draw(batch, "[E]", i.bounds.x + 5, i.bounds.y - 10);
+            }
+        }
+        batch.end();
+
+        // 3. DRAW DIALOG BOXES
+        if (anyDialogOpen()) { 
+            drawDialogBoxes();
+        }
 
         // 4. Update Logic (Can stay outside)
         updateEnemies(dt);
@@ -290,8 +339,59 @@ public class Main extends ApplicationAdapter {
         }
     }
 
+    private void drawDialogBoxes() {
+        // Enable transparency
+        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(com.badlogic.gdx.graphics.GL20.GL_SRC_ALPHA, com.badlogic.gdx.graphics.GL20.GL_ONE_MINUS_SRC_ALPHA);
+
+        shapeRenderer.setProjectionMatrix(camera.combined);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        
+        for (Interactable i : interactables) {
+            if (i.isDialogOpen) {
+                float boxW = 250;
+                float boxH = 80;
+                float bobOffset = (float) Math.sin(bobCounter * 5) * 3;
+                float boxX = i.bounds.x - (boxW / 2) + (i.bounds.width / 2);
+                float boxY = i.bounds.y - boxH - 20 + bobOffset;
+
+                shapeRenderer.setColor(0, 0, 0, 0.7f); 
+                shapeRenderer.rect(boxX, boxY, boxW, boxH);
+                shapeRenderer.triangle(i.bounds.x + 10, boxY + boxH, i.bounds.x + 22, boxY + boxH, i.bounds.x + 16, boxY + boxH + 10);
+            }
+        }
+        shapeRenderer.end();
+        Gdx.gl.glDisable(com.badlogic.gdx.graphics.GL20.GL_BLEND);
+
+        // Now draw the text on top
+        batch.begin();
+        for (Interactable i : interactables) {
+            if (i.isDialogOpen) {
+                float boxW = 250;
+                float boxH = 80;
+                float bobOffset = (float) Math.sin(bobCounter * 5) * 3;
+                float boxX = i.bounds.x - (boxW / 2) + (i.bounds.width / 2);
+                float boxY = i.bounds.y - boxH - 20 + bobOffset;
+
+                String visibleText = i.message.substring(0, Math.min(i.visibleChars, i.message.length()));
+                font.draw(batch, visibleText, boxX + 10, boxY + 10, boxW - 20, 1, true);
+            }
+        }
+        batch.end();
+    }
+
+    private boolean anyDialogOpen() {
+        for (Interactable i : interactables) {
+            if (i.isDialogOpen) return true;
+        }
+        return false;
+    }
+
     @Override
     public void dispose() {
         shapeRenderer.dispose();
+        shapeRenderer.dispose();
+        batch.dispose();
+        font.dispose();
     }
 }
