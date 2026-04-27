@@ -273,6 +273,13 @@ public class Main extends ApplicationAdapter {
         // Draw Platforms, Player, and Enemies
         shapeRenderer.setColor(Color.GRAY);
         for (Rectangle p : platforms) shapeRenderer.rect(p.x, p.y, p.width, p.height);
+
+        // Enemy AI debug TOGGLE
+        shapeRenderer.setColor(Color.BLUE);
+        for (Enemy e : enemies) {
+            float sensorX = e.movingRight ? e.bounds.x + e.bounds.width + 5 : e.bounds.x - 10;
+            shapeRenderer.rect(sensorX, e.bounds.y + e.bounds.height + 2, 5, 5);
+        }
         
         // Player
         if (!isDead) {
@@ -310,6 +317,9 @@ public class Main extends ApplicationAdapter {
             }
         }
 
+        // Kill application
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)){ Gdx.app.exit();}
+
         // Draw the [E] Prompt
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
@@ -333,19 +343,40 @@ public class Main extends ApplicationAdapter {
     private void updateEnemies(float dt) {
         for (Enemy e : enemies) {
             e.tickHurtTimer(dt);
+            
+            // 1. Reset ground state for this frame
+            boolean onPlatform = false;
 
-            // 1. Gravity (Always pull down)
+            // --- 2. HORIZONTAL MOVEMENT & WALLS ---
+            float moveAmount = (e.movingRight ? 150f : -150f) * dt;
+            e.bounds.x += moveAmount;
+
+            for (Rectangle p : platforms) {
+                if (e.bounds.overlaps(p)) {
+                    // Determine if we can jump over this obstacle
+                    boolean canJumpUp = p.y < e.bounds.y + (e.bounds.height / 2);
+                    
+                    if (canJumpUp) {
+                        e.velocity.y = -18f; 
+                        e.bounds.x += (e.movingRight ? 10 : -10);
+                    } else {
+                        e.movingRight = !e.movingRight;
+                        e.bounds.x += (e.movingRight ? 5 : -5);
+                    }
+                    break;
+                }
+            }
+
+            // --- 3. VERTICAL MOVEMENT & GRAVITY ---
             e.velocity.y += GRAVITY;
             e.bounds.y += e.velocity.y;
 
-            // 2. Vertical Collision
-            boolean onPlatform = false; 
             for (Rectangle p : platforms) {
                 if (e.bounds.overlaps(p)) {
-                    if (e.velocity.y > 0) { // Falling
+                    if (e.velocity.y > 0) { // Falling/Landing
                         e.bounds.y = p.y - e.bounds.height;
                         e.velocity.y = 0;
-                        onPlatform = true; 
+                        onPlatform = true; // Firmly on the ground now
                     } else if (e.velocity.y < 0) { // Ceiling
                         e.bounds.y = p.y + p.height;
                         e.velocity.y = 0;
@@ -353,64 +384,39 @@ public class Main extends ApplicationAdapter {
                 }
             }
 
-            // 3. Horizontal Movement
-            float moveAmount = (e.movingRight ? 120f : -120f) * dt;
-            e.bounds.x += moveAmount;
-
-            // 4. Smart Wall Bouncing & Jumping UP
-            for (Rectangle p : platforms) {
-                if (e.bounds.overlaps(p)) {
-                    // Look for ledges slightly above the feet but below head-height
-                    // We use a broader range (up to 150px) to ensure it catches the platform
-                    boolean isLedgeAbove = p.y < (e.bounds.y + e.bounds.height) && p.y > (e.bounds.y - 150);
-
-                    if (isLedgeAbove && onPlatform) {
-                        e.velocity.y = -18f; // Stronger jump to clear the tile height
-                        // Push them toward the ledge so they don't hit the wall again
-                        e.bounds.x += (e.movingRight ? 5 : -5); 
-                        break; 
-                    } 
-                    
-                    // ONLY turn around if we are on the ground and not jumping
-                    // This stops the enemy from flipping direction mid-air
-                    else if (onPlatform && (e.bounds.y + e.bounds.height > p.y + 2)) {
-                        e.movingRight = !e.movingRight;
-                        e.bounds.x += (e.movingRight ? 12 : -12); // Stronger nudge away from the wall
-                        break;
-                    }
-                }
-            }
-
-            // 5. Jump/Gap AI (Refined for Cross-Level Movement)
+            // --- 4. GAP & LEAP LOGIC ---
             if (onPlatform) {
-                // Look specifically for a gap at the feet
                 float sensorX = e.movingRight ? e.bounds.x + e.bounds.width + 5 : e.bounds.x - 10;
-                Rectangle gapSensor = new Rectangle(sensorX, e.bounds.y + e.bounds.height + 5, 5, 5);
-                // float leapX = e.movingRight ? e.bounds.x + 100 : e.bounds.x - 200; 
-                // Rectangle leapSensor = new Rectangle(leapX, e.bounds.y - 100, 150, 300);
+                // Sensor sits 2px below the feet to ensure it touches the platform
+                Rectangle gapSensor = new Rectangle(sensorX, e.bounds.y + e.bounds.height + 2, 5, 5);
 
                 boolean groundAhead = false;
                 for (Rectangle p : platforms) {
-                    if (gapSensor.overlaps(p)) { groundAhead = true; break; }
+                    if (gapSensor.overlaps(p)) {
+                        groundAhead = true;
+                        break;
+                    }
                 }
 
                 if (!groundAhead) {
-                    // We found a gap! Can we leap it?
-                    // Search further ahead and slightly below for a landing spot
-                    float leapX = e.movingRight ? e.bounds.x + 80 : e.bounds.x - 180;
-                    Rectangle leapSensor = new Rectangle(leapX, e.bounds.y, 100, 250);
+                    // Gap detected! Look for a landing spot
+                    float leapX = e.movingRight ? e.bounds.x + 150 : e.bounds.x - 300;
+                    Rectangle leapSensor = new Rectangle(leapX, e.bounds.y - 100, 150, 400);
 
                     boolean landingSpotFound = false;
                     for (Rectangle p : platforms) {
-                        if (leapSensor.overlaps(p)) { landingSpotFound = true; break; }
+                        if (leapSensor.overlaps(p)) {
+                            landingSpotFound = true;
+                            break;
+                        }
                     }
 
                     if (landingSpotFound) {
-                        e.velocity.y = -15f; // Jump across!
+                        e.velocity.y = -15f; 
                     } else {
-                        // NO LANDING SPOT: Turn around and head to the other side of the level
+                        // Nowhere to go: Turn around
                         e.movingRight = !e.movingRight;
-                        e.bounds.x += (e.movingRight ? 15 : -15); 
+                        e.bounds.x += (e.movingRight ? 10 : -10);
                     }
                 }
             }
@@ -511,7 +517,6 @@ public class Main extends ApplicationAdapter {
     
     @Override
     public void dispose() {
-        shapeRenderer.dispose();
         shapeRenderer.dispose();
         batch.dispose();
         font.dispose();
