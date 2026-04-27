@@ -34,7 +34,7 @@ public class Main extends ApplicationAdapter {
     private Array<Enemy> enemies;
 
     // Dashing variables:
-    private float dashCooldown = 0;
+    private float dashCooldown = 0; 
     private float dashTimer = 0;
     private final float DASH_DURATION = 0.15f;
     private final float DASH_SPEED = 800f;
@@ -73,7 +73,7 @@ public class Main extends ApplicationAdapter {
         deathZones = new Array<>(); 
         respawnPoint = new Vector2();
 
-        player = new Rectangle(100, 100, 50, 50);
+        player = new Rectangle(0, 0, 50, 50);
         
         // 1. Initialize the lists FIRST
         platforms = new Array<>();
@@ -117,17 +117,14 @@ public class Main extends ApplicationAdapter {
                     float[] coords = entity.get("px").asFloatArray();
                     
                     if (name.equals("Player_Spawn")) {
-                        // 1. Get the actual pixel coordinates from LDtk
-                        float spawnX = coords[0];
-                        float spawnY = coords[1];
-
-                        // 2. Move the player rectangle there immediately
-                        player.setPosition(spawnX, spawnY);
-
-                        // 3. Update the respawnPoint vector so it's ready for the death logic
-                        respawnPoint.set(spawnX, spawnY); 
+                        float sx = coords[0];
+                        float sy = coords[1];
                         
-                        System.out.println("Spawn Point Set to: " + spawnX + ", " + spawnY);
+                        player.setPosition(sx, sy);
+                        // Use .set() to save these specific coordinates for later!
+                        respawnPoint.set(sx, sy); 
+                        
+                        System.out.println("Spawn point captured at: " + sx + ", " + sy);
                     }
                     if (name.equals("Enemy")) {
                         enemies.add(new Enemy(coords[0], coords[1]));
@@ -187,81 +184,83 @@ public class Main extends ApplicationAdapter {
             if (deathTimer <= 0 && Gdx.input.isKeyJustPressed(Input.Keys.ANY_KEY)) {
                 respawnPlayer();
             }
-            return; // Stop the rest of the movement/physics logic
         }
-
-        // Check Death Zones
-        for (Rectangle zone : deathZones) {
-            if (player.overlaps(zone)) {
-                triggerDeath();
-            }
-        }
-
-        // Smoothly return to 1.0 scale (squish)
-        playerScaleX += (1f - playerScaleX) * LERP_SPEED * dt;
-        playerScaleY += (1f - playerScaleY) * LERP_SPEED * dt;
-
-        // Track falling state for the landing squish
-        if (!onGround) {
-            wasFalling = true;
-        }
-
-        // DASH INPUT
-        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && dashCooldown <= 0) {
-            isDashing = true;
-            dashTimer = DASH_DURATION;
-            dashCooldown = DASH_COOLDOWN_MAX;
-            // Set dash velocity immediately
-            if (xVelocity == 0) xVelocity = DASH_SPEED * dt; 
-            else xVelocity = (xVelocity > 0 ? DASH_SPEED : -DASH_SPEED) * dt;
-        }
-
-        // DASH STATE vs NORMAL STATE
-        if (isDashing) {
-            dashTimer -= dt;
-            yVelocity = 0; // Freeze Y-axis during dash
-            if (dashTimer <= 0) isDashing = false;
-        } else {
-            // --- NORMAL MOVEMENT (Only happens when NOT dashing) ---
-            dashCooldown -= dt;
-
-            // Horizontal Input
-            if (Gdx.input.isKeyPressed(Input.Keys.A)) xVelocity = -MOVE_SPEED * dt;
-            else if (Gdx.input.isKeyPressed(Input.Keys.D)) xVelocity = MOVE_SPEED * dt;
-            else xVelocity = 0;
-
-            // Coyote Time Logic
-            if (onGround) coyoteCounter = COYOTE_TIME_MAX;
-            else if (coyoteCounter > 0) coyoteCounter--;
-
-            // Jump Input
-            if (Gdx.input.isKeyJustPressed(Input.Keys.W) && (onGround || coyoteCounter > 0)) {
-                yVelocity = JUMP_SPEED;
-                onGround = false;
-                coyoteCounter = 0;
-
-                // Stretch UP on jump
-                playerScaleX = 0.8f; 
-                playerScaleY = 1.3f;
-            }
-
-            // Wall Grab & Gravity
-            isWallGrabbing = false;
-            if (!onGround && Math.abs(xVelocity) > 0) {
-                for (Rectangle p : platforms) {
-                    if (player.overlaps(p)) isWallGrabbing = true;
+        
+        if (!isDead){
+            // Check Death Zones
+            for (Rectangle zone : deathZones) {
+                if (player.overlaps(zone)) {
+                    triggerDeath();
                 }
             }
 
-            if (isWallGrabbing) yVelocity = 50f * dt; 
-            else yVelocity += GRAVITY;
-        }
+            // Smoothly return to 1.0 scale (squish)
+            playerScaleX += (1f - playerScaleX) * LERP_SPEED * dt;
+            playerScaleY += (1f - playerScaleY) * LERP_SPEED * dt;
 
-        // APPLY PHYSICS
-        player.x += xVelocity;
-        checkCollisions(true);
-        player.y += yVelocity;
-        checkCollisions(false);
+            // Track falling state for the landing squish
+            if (!onGround) {
+                wasFalling = true;
+            }
+
+            // DASH INPUT
+            if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) && dashCooldown <= 0) {
+                isDashing = true;
+                dashTimer = DASH_DURATION;
+                dashCooldown = DASH_COOLDOWN_MAX;
+                // Set dash velocity immediately
+                if (xVelocity == 0) xVelocity = DASH_SPEED * dt; 
+                else xVelocity = (xVelocity > 0 ? DASH_SPEED : -DASH_SPEED) * dt;
+            }
+
+            // DASH STATE vs NORMAL STATE
+            if (isDashing) {
+                dashTimer -= dt;
+                yVelocity = 0; // Freeze Y-axis during dash
+                if (dashTimer <= 0) isDashing = false;
+            } else {
+                // --- NORMAL MOVEMENT (Only happens when NOT dashing) ---
+                dashCooldown -= dt;
+
+                // Horizontal Input
+                if (Gdx.input.isKeyPressed(Input.Keys.A)) xVelocity = -MOVE_SPEED * dt;
+                else if (Gdx.input.isKeyPressed(Input.Keys.D)) xVelocity = MOVE_SPEED * dt;
+                else xVelocity = 0;
+
+                // Coyote Time Logic
+                if (onGround) coyoteCounter = COYOTE_TIME_MAX;
+                else if (coyoteCounter > 0) coyoteCounter--;
+
+                // Jump Input
+                if (Gdx.input.isKeyJustPressed(Input.Keys.W) && (onGround || coyoteCounter > 0)) {
+                    yVelocity = JUMP_SPEED;
+                    onGround = false;
+                    coyoteCounter = 0;
+
+                    // Stretch UP on jump
+                    playerScaleX = 0.8f; 
+                    playerScaleY = 1.3f;
+                }
+
+                // Wall Grab & Gravity
+                isWallGrabbing = false;
+                if (!onGround && Math.abs(xVelocity) > 0) {
+                    for (Rectangle p : platforms) {
+                        if (player.overlaps(p)) isWallGrabbing = true;
+                    }
+                }
+
+                if (isWallGrabbing) yVelocity = 50f * dt; 
+                else yVelocity += GRAVITY;
+            }
+
+            // APPLY PHYSICS
+            player.x += xVelocity;
+            checkCollisions(true);
+            player.y += yVelocity;
+            checkCollisions(false);
+
+        }
 
         // CAMERA & DRAWING
         camera.position.set(player.x + player.width/2, player.y + player.height/2, 0);
@@ -276,7 +275,15 @@ public class Main extends ApplicationAdapter {
         for (Rectangle p : platforms) shapeRenderer.rect(p.x, p.y, p.width, p.height);
         
         // Player
-        shapeRenderer.setColor(Color.RED);
+        if (!isDead) {
+            shapeRenderer.setColor(Color.RED);
+            float visWidth = player.width * playerScaleX;
+            float visHeight = player.height * playerScaleY;
+            float visX = player.x + (player.width - visWidth) / 2f;
+            float visY = (player.y + player.height) - visHeight;
+            shapeRenderer.rect(visX, visY, visWidth, visHeight);
+            shapeRenderer.rect(visX, visY, visWidth, visHeight);
+        }
 
         // Calculate visual dimensions
         float visWidth = player.width * playerScaleX;
@@ -285,9 +292,6 @@ public class Main extends ApplicationAdapter {
         // Offset the X and Y so the squish happens from the bottom-center
         float visX = player.x + (player.width - visWidth) / 2f;
         float visY = (player.y + player.height) - visHeight;
-
-        // Draw the player
-        shapeRenderer.rect(visX, visY, visWidth, visHeight);
 
         // Enemies
         shapeRenderer.setColor(Color.YELLOW);
@@ -501,9 +505,10 @@ public class Main extends ApplicationAdapter {
         player.setPosition(respawnPoint.x, respawnPoint.y);
         xVelocity = 0;
         yVelocity = 0;
-        System.out.println("Respawned at: " + respawnPoint);
+        wasFalling = false; // Reset squish state
+        System.out.println("Respawning at captured LDtk point: " + respawnPoint);
     }
-
+    
     @Override
     public void dispose() {
         shapeRenderer.dispose();
