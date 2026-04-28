@@ -275,10 +275,10 @@ public class Main extends ApplicationAdapter {
         for (Rectangle p : platforms) shapeRenderer.rect(p.x, p.y, p.width, p.height);
 
         // Enemy AI debug TOGGLE
-        shapeRenderer.setColor(Color.BLUE);
+        shapeRenderer.setColor(Color.CYAN);
         for (Enemy e : enemies) {
-            float sensorX = e.movingRight ? e.bounds.x + e.bounds.width + 5 : e.bounds.x - 10;
-            shapeRenderer.rect(sensorX, e.bounds.y + e.bounds.height + 2, 5, 5);
+            float sensorX = e.movingRight ? e.bounds.x + e.bounds.width + 10 : e.bounds.x - 15;
+            shapeRenderer.rect(sensorX, e.bounds.y + e.bounds.height + 5, 5, 5); // Gap Sensor
         }
         
         // Player
@@ -343,40 +343,40 @@ public class Main extends ApplicationAdapter {
     private void updateEnemies(float dt) {
         for (Enemy e : enemies) {
             e.tickHurtTimer(dt);
-            
-            // 1. Reset ground state for this frame
             boolean onPlatform = false;
 
-            // --- 2. HORIZONTAL MOVEMENT & WALLS ---
+            // --- 1. HORIZONTAL MOVEMENT ---
             float moveAmount = (e.movingRight ? 150f : -150f) * dt;
             e.bounds.x += moveAmount;
 
             for (Rectangle p : platforms) {
                 if (e.bounds.overlaps(p)) {
-                    // Determine if we can jump over this obstacle
-                    boolean canJumpUp = p.y < e.bounds.y + (e.bounds.height / 2);
-                    
-                    if (canJumpUp) {
+                    float footPos = e.bounds.y + e.bounds.height;
+                    // Threshold check: Is this a tiny step or a wall?
+                    boolean isStepUp = p.y < footPos && p.y > footPos - 15;
+
+                    if (isStepUp) {
                         e.velocity.y = -18f; 
-                        e.bounds.x += (e.movingRight ? 10 : -10);
                     } else {
                         e.movingRight = !e.movingRight;
-                        e.bounds.x += (e.movingRight ? 5 : -5);
+                        // Eject fully to avoid "pacing" jitter
+                        if (e.movingRight) e.bounds.x = p.x + p.width + 2;
+                        else e.bounds.x = p.x - e.bounds.width - 2;
+                        break; 
                     }
-                    break;
                 }
             }
 
-            // --- 3. VERTICAL MOVEMENT & GRAVITY ---
+            // --- 2. VERTICAL MOVEMENT ---
             e.velocity.y += GRAVITY;
             e.bounds.y += e.velocity.y;
 
             for (Rectangle p : platforms) {
                 if (e.bounds.overlaps(p)) {
-                    if (e.velocity.y > 0) { // Falling/Landing
+                    if (e.velocity.y > 0) { // Landing
                         e.bounds.y = p.y - e.bounds.height;
                         e.velocity.y = 0;
-                        onPlatform = true; // Firmly on the ground now
+                        onPlatform = true; 
                     } else if (e.velocity.y < 0) { // Ceiling
                         e.bounds.y = p.y + p.height;
                         e.velocity.y = 0;
@@ -384,11 +384,11 @@ public class Main extends ApplicationAdapter {
                 }
             }
 
-            // --- 4. GAP & LEAP LOGIC ---
+            // --- 3. GAP & LEAP LOGIC ---
             if (onPlatform) {
-                float sensorX = e.movingRight ? e.bounds.x + e.bounds.width + 5 : e.bounds.x - 10;
-                // Sensor sits 2px below the feet to ensure it touches the platform
-                Rectangle gapSensor = new Rectangle(sensorX, e.bounds.y + e.bounds.height + 2, 5, 5);
+                // Gap Sensor: Position it about 10px in front of the enemy
+                float sensorX = e.movingRight ? e.bounds.x + e.bounds.width + 10 : e.bounds.x - 15;
+                Rectangle gapSensor = new Rectangle(sensorX, e.bounds.y + e.bounds.height + 5, 5, 5);
 
                 boolean groundAhead = false;
                 for (Rectangle p : platforms) {
@@ -399,9 +399,10 @@ public class Main extends ApplicationAdapter {
                 }
 
                 if (!groundAhead) {
-                    // Gap detected! Look for a landing spot
-                    float leapX = e.movingRight ? e.bounds.x + 150 : e.bounds.x - 300;
-                    Rectangle leapSensor = new Rectangle(leapX, e.bounds.y - 100, 150, 400);
+                    // Leap Sensor: Look ahead for a new platform, but NOT the current one
+                    // We start the search 40px away from the current edge
+                    float leapX = e.movingRight ? e.bounds.x + e.bounds.width + 40 : e.bounds.x - 140;
+                    Rectangle leapSensor = new Rectangle(leapX, e.bounds.y - 50, 100, 200);
 
                     boolean landingSpotFound = false;
                     for (Rectangle p : platforms) {
@@ -412,11 +413,11 @@ public class Main extends ApplicationAdapter {
                     }
 
                     if (landingSpotFound) {
-                        e.velocity.y = -15f; 
+                        e.velocity.y = -16f; // Take the leap!
                     } else {
-                        // Nowhere to go: Turn around
+                        // No landing spot: Turn around and move away from the ledge
                         e.movingRight = !e.movingRight;
-                        e.bounds.x += (e.movingRight ? 10 : -10);
+                        e.bounds.x += (e.movingRight ? 5 : -5); 
                     }
                 }
             }
