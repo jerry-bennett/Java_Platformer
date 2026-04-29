@@ -13,7 +13,6 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 public class MainMenu implements Screen {
-    // This must be 'Main' because 'Main' is the class that handles setScreen()
     private final Main game; 
     private Stage stage;
     private Skin skin;
