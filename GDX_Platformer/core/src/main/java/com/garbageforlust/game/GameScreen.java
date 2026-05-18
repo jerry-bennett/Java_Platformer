@@ -5,12 +5,14 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
-import com.badlogic.gdx.utils.JsonValue; // ADDED THIS IMPORT
+import com.badlogic.gdx.utils.JsonValue;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -20,6 +22,7 @@ import com.garbageforlust.game.Interactable;
 public class GameScreen implements Screen {
     private ShapeRenderer shapeRenderer;
     private OrthographicCamera camera;
+    private Array<Dust> dustParticles = new Array<>();
 
     private Rectangle player;
     private float xVelocity = 0, yVelocity = 0;
@@ -238,6 +241,13 @@ public class GameScreen implements Screen {
                     onGround = false;
                     coyoteCounter = 0;
 
+                    // Spawn dust at player's feet
+                    createDust(
+                        player.x + player.width / 2, 
+                        player.y + player.height, 
+                        5
+                    );
+
                     // Stretch UP on jump
                     playerScaleX = 0.8f; 
                     playerScaleY = 1.3f;
@@ -305,8 +315,30 @@ public class GameScreen implements Screen {
         shapeRenderer.setColor(Color.YELLOW);
         for (Enemy e : enemies) shapeRenderer.rect(e.bounds.x, e.bounds.y, e.bounds.width, e.bounds.height);
 
-        // CLOSE IT HERE! We are done with basic world shapes.
+        // --- UPDATE PARTICLES ---
+        for (int i = dustParticles.size - 1; i >= 0; i--) {
+            Dust d = dustParticles.get(i);
+            d.update(delta);
+            if (d.isDead()) {
+                dustParticles.removeIndex(i);
+            }
+        }
+
         shapeRenderer.end();
+
+        // Open a temporary block for transparent shapes
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+
+        for (Dust d : dustParticles) {
+            // Light gray/white dust with fading alpha
+            shapeRenderer.setColor(0.8f, 0.8f, 0.8f, d.alpha);
+            shapeRenderer.rect(d.x, d.y, d.size, d.size);
+        }
+
+        shapeRenderer.end();
+        Gdx.gl.glDisable(GL20.GL_BLEND);
 
         //Draw Typewriter
         bobCounter += dt;
@@ -523,6 +555,17 @@ public class GameScreen implements Screen {
         System.out.println("Respawning at captured LDtk point: " + respawnPoint);
     }
     
+    private void createDust(float x, float y, int count) {
+        for (int i = 0; i < count; i++) {
+            // Random velocity: x is left/right, y is slightly upward
+            // Adjust the signs if your GRAVITY direction is inverted!
+            float vx = MathUtils.random(-2f, 2f); 
+            float vy = MathUtils.random(-2f, 0f); // Assuming Y goes down for upward launch
+            
+            dustParticles.add(new Dust(x, y, vx, vy));
+        }
+    }
+
     @Override
     public void dispose() {
         shapeRenderer.dispose();
