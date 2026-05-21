@@ -36,6 +36,7 @@ public class GameScreen implements Screen {
     private boolean onGround = false;
     private Array<Rectangle> platforms;
     private Array<Enemy> enemies;
+    private int shakeIntensity = 0;
 
     // Dashing variables:
     private float dashCooldown = 0; 
@@ -270,6 +271,30 @@ public class GameScreen implements Screen {
             checkCollisions(true);
             player.y += yVelocity;
             checkCollisions(false);
+
+            //shake logic
+            for (Enemy e : enemies) {
+                if (player.overlaps(e.bounds)) {
+                    // 1. Trigger Screen Shake
+                    shakeIntensity = 10; 
+
+                    // 2. Determine push direction
+                    // If enemy is to the left of player, push player right, and vice versa
+                    int pushPower = 10;
+                    if (e.bounds.x < player.x) {
+                        xVelocity = pushPower; // Knockback
+                        player.setX(player.getX() + 10); // Physical nudge to prevent sticking
+                        e.movingRight = false;
+                    } else {
+                        xVelocity = (-pushPower);
+                        player.setX(player.getX() - 10);
+                        e.movingRight = true;
+                    }
+                    
+                    // 3. Optional: Bounce the player up slightly
+                    yVelocity = (-2);
+                }
+            }
 
         }
 
