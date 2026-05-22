@@ -25,6 +25,8 @@ public class GameScreen implements Screen {
     private Array<Dust> dustParticles = new Array<>();
 
     private Rectangle player;
+    private Rectangle enemy;
+    private Rectangle death;
     private float xVelocity = 0, yVelocity = 0;
     private final float GRAVITY = 1.0f; 
     private final float JUMP_SPEED = -15f; 
@@ -61,7 +63,9 @@ public class GameScreen implements Screen {
     // Death variables
     private Array<Rectangle> deathZones;
     private Vector2 respawnPoint; // To remember where the level started
+    private Vector2 enemyRespawnPoint;
     private boolean isDead = false;
+    private boolean isEnemyDead = false;
     private float deathTimer = 0;
     private final float DEATH_DELAY = 1.0f; // 1 second wait
 
@@ -77,12 +81,15 @@ public class GameScreen implements Screen {
 
         deathZones = new Array<>(); 
         respawnPoint = new Vector2();
+        enemyRespawnPoint = new Vector2();
 
         player = new Rectangle(0, 0, 50, 50);
+        enemy = new Rectangle(0, 0, 25, 25);
+        death = new Rectangle();
         
         // 1. Initialize the lists FIRST
         platforms = new Array<>();
-        enemies = new Array<>(); // <--- THIS MUST BE HERE
+        enemies = new Array<>(); //
         
         // 2. Load the level SECOND
         loadLDtkLevel("maps/level1(new).ldtk"); 
@@ -131,13 +138,20 @@ public class GameScreen implements Screen {
                         
                         System.out.println("Spawn point captured at: " + sx + ", " + sy);
                     }
-                    if (name.equals("Enemy")) {
-                        enemies.add(new Enemy(coords[0], coords[1]));
+                    if (name.equals("Enemy_Spawn")) {
+                        float ex = coords[0];
+                        float ey = coords[1];
+                        
+                        enemies.add(new Enemy(ex, ey));
+                        enemyRespawnPoint.set(ex, ey); 
+                        
+                        System.out.println("Enemy spawn point captured at: " + ex + ", " + ey);
                     }
                     if (name.equals("Death")) {
                         float w = entity.getInt("width");
                         float h = entity.getInt("height");
                         deathZones.add(new Rectangle(coords[0], coords[1], w, h));
+                        death.setPosition(w, h);
                     }
 
                     if (name.equals("NPC")) {
@@ -283,8 +297,7 @@ public class GameScreen implements Screen {
                     int pushPower = 10;
                     if (e.bounds.x < player.x) {
                         xVelocity = pushPower; // Knockback
-                        player.setX(player.getX() + 10); // Physical nudge to prevent sticking
-                        e.movingRight = false;
+                        player.setX(player.getX() + 5); // Physical nudge to prevent sticking
                     } else {
                         xVelocity = (-pushPower);
                         player.setX(player.getX() - 10);
@@ -431,6 +444,19 @@ public class GameScreen implements Screen {
                 }
             }
 
+            // Collide with player logic
+            if(e.bounds.overlaps(player)){
+                // 'Bounce' away in the opposite direction
+                e.velocity.x -= 200;
+                e.bounds.x -= 200;
+                e.velocity.y -= 15;
+            }
+
+            // Collide with death zone logic
+            if(e.bounds.overlaps(death)){
+
+            }
+
             // --- 2. VERTICAL MOVEMENT ---
             e.velocity.y += GRAVITY;
             e.bounds.y += e.velocity.y;
@@ -571,6 +597,10 @@ public class GameScreen implements Screen {
         }
     }
 
+    private void triggerEnemyDeath() {
+
+    }
+
     private void respawnPlayer() {
         isDead = false;
         player.setPosition(respawnPoint.x, respawnPoint.y);
@@ -578,6 +608,10 @@ public class GameScreen implements Screen {
         yVelocity = 0;
         wasFalling = false; // Reset squish state
         System.out.println("Respawning at captured LDtk point: " + respawnPoint);
+        
+        enemies.clear();
+        enemies.add(new Enemy(enemyRespawnPoint.x, enemyRespawnPoint.y));
+        System.out.println("Respawning enemy at captured LDtk point: " + enemyRespawnPoint);
     }
     
     private void createDust(float x, float y, int count) {
