@@ -1,6 +1,5 @@
 package com.garbageforlust.game;
 
-import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
@@ -17,16 +16,12 @@ import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 
-import com.garbageforlust.game.Interactable;
-
 public class GameScreen implements Screen {
     private ShapeRenderer shapeRenderer;
     private OrthographicCamera camera;
     private Array<Dust> dustParticles = new Array<>();
 
     private Rectangle player;
-    private Rectangle enemy;
-    private Rectangle death;
     private float xVelocity = 0, yVelocity = 0;
     private final float GRAVITY = 1.0f; 
     private final float JUMP_SPEED = -15f; 
@@ -38,7 +33,6 @@ public class GameScreen implements Screen {
     private boolean onGround = false;
     private Array<Rectangle> platforms;
     private Array<Enemy> enemies;
-    private int shakeIntensity = 0;
 
     // Dashing variables:
     private float dashCooldown = 0; 
@@ -65,7 +59,6 @@ public class GameScreen implements Screen {
     private Vector2 respawnPoint; // To remember where the level started
     private Vector2 enemyRespawnPoint;
     private boolean isDead = false;
-    private boolean isEnemyDead = false;
     private float deathTimer = 0;
     private final float DEATH_DELAY = 1.0f; // 1 second wait
 
@@ -84,14 +77,12 @@ public class GameScreen implements Screen {
         enemyRespawnPoint = new Vector2();
 
         player = new Rectangle(0, 0, 50, 50);
-        enemy = new Rectangle(0, 0, 25, 25);
-        death = new Rectangle();
         
-        // 1. Initialize the lists FIRST
+        // Initialize the lists
         platforms = new Array<>();
-        enemies = new Array<>(); //
+        enemies = new Array<>();
         
-        // 2. Load the level SECOND
+        // Load the level
         loadLDtkLevel("maps/level1(new).ldtk"); 
     }
 
@@ -100,7 +91,6 @@ public class GameScreen implements Screen {
         com.badlogic.gdx.utils.JsonReader reader = new com.badlogic.gdx.utils.JsonReader();
         JsonValue root = reader.parse(Gdx.files.internal(path));
         
-        // Get the first level in the LDtk file
         JsonValue level = root.get("levels").get(0); 
         JsonValue layerInstances = level.get("layerInstances");
 
@@ -108,7 +98,7 @@ public class GameScreen implements Screen {
             String layerName = layer.getString("__identifier");
 
             // Load Collisions (IntGrid)
-            if (layerName.equals("IntGrid")) { // Double check this matches your LDtk layer name!
+            if (layerName.equals("IntGrid")) {
                 int gridSize = layer.getInt("__gridSize");
                 int cWid = layer.getInt("__cWid");
                 int[] gridData = layer.get("intGridCsv").asIntArray();
@@ -133,9 +123,7 @@ public class GameScreen implements Screen {
                         float sy = coords[1];
                         
                         player.setPosition(sx, sy);
-                        // Use .set() to save these specific coordinates for later!
                         respawnPoint.set(sx, sy); 
-                        
                         System.out.println("Spawn point captured at: " + sx + ", " + sy);
                     }
                     if (name.equals("Enemy_Spawn")) {
@@ -144,45 +132,30 @@ public class GameScreen implements Screen {
                         
                         enemies.add(new Enemy(ex, ey));
                         enemyRespawnPoint.set(ex, ey); 
-                        
                         System.out.println("Enemy spawn point captured at: " + ex + ", " + ey);
                     }
                     if (name.equals("Death")) {
                         float w = entity.getInt("width");
                         float h = entity.getInt("height");
                         deathZones.add(new Rectangle(coords[0], coords[1], w, h));
-                        death.setPosition(w, h);
                     }
 
                     if (name.equals("NPC")) {
                         String msg = "Default Message"; 
-                        
-                        // Get the array of fields
                         JsonValue fieldInstances = entity.get("fieldInstances");
 
                         if (fieldInstances != null && fieldInstances.size > 0) {
                             for (JsonValue field : fieldInstances) {
                                 String id = field.getString("__identifier");
-                                
-                                // DEBUG: This will print every field name found to the console
-                                System.out.println("Found field: " + id);
-
                                 if (id.equalsIgnoreCase("message")) {
-                                    // Let's see the raw JSON of the value node
                                     JsonValue val = field.get("__value");
-                                    
                                     if (val != null && !val.isNull()) {
                                         msg = val.asString();
-                                        System.out.println("Success! Message is: " + msg);
                                     } else {
-                                        // If we are here, LDtk has 'null' written in the JSON file
                                         msg = "Empty Value in LDtk";
-                                        System.out.println("Field found, but 'value' is explicitly null in the JSON file.");
                                     }
                                 }
                             }
-                        } else {
-                            System.out.println("Warning: NPC entity found, but it has NO field instances!");
                         }
 
                         float x = entity.get("px").asFloatArray()[0];
@@ -227,7 +200,6 @@ public class GameScreen implements Screen {
                 isDashing = true;
                 dashTimer = DASH_DURATION;
                 dashCooldown = DASH_COOLDOWN_MAX;
-                // Set dash velocity immediately
                 if (xVelocity == 0) xVelocity = DASH_SPEED * dt; 
                 else xVelocity = (xVelocity > 0 ? DASH_SPEED : -DASH_SPEED) * dt;
             }
@@ -238,7 +210,6 @@ public class GameScreen implements Screen {
                 yVelocity = 0; // Freeze Y-axis during dash
                 if (dashTimer <= 0) isDashing = false;
             } else {
-                // --- NORMAL MOVEMENT (Only happens when NOT dashing) ---
                 dashCooldown -= dt;
 
                 // Horizontal Input
@@ -256,7 +227,6 @@ public class GameScreen implements Screen {
                     onGround = false;
                     coyoteCounter = 0;
 
-                    // Spawn dust at player's feet
                     createDust(
                         player.x + player.width / 2, 
                         player.y + player.height, 
@@ -286,29 +256,21 @@ public class GameScreen implements Screen {
             player.y += yVelocity;
             checkCollisions(false);
 
-            //shake logic
+            // Enemy collision / knockback logic
             for (Enemy e : enemies) {
                 if (player.overlaps(e.bounds)) {
-                    // 1. Trigger Screen Shake
-                    shakeIntensity = 10; 
-
-                    // 2. Determine push direction
-                    // If enemy is to the left of player, push player right, and vice versa
-                    int pushPower = 10;
+                    int pushPower = 20;
                     if (e.bounds.x < player.x) {
-                        xVelocity = pushPower; // Knockback
-                        player.setX(player.getX() + 5); // Physical nudge to prevent sticking
+                        xVelocity = pushPower; 
+                        player.setX(player.getX() + 5); 
                     } else {
                         xVelocity = (-pushPower);
                         player.setX(player.getX() - 10);
                         e.movingRight = true;
                     }
-                    
-                    // 3. Optional: Bounce the player up slightly
                     yVelocity = (-2);
                 }
             }
-
         }
 
         // CAMERA & DRAWING
@@ -319,18 +281,18 @@ public class GameScreen implements Screen {
         shapeRenderer.setProjectionMatrix(camera.combined);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
-        // Draw Platforms, Player, and Enemies
+        // Draw Platforms
         shapeRenderer.setColor(Color.GRAY);
         for (Rectangle p : platforms) shapeRenderer.rect(p.x, p.y, p.width, p.height);
 
-        // Enemy AI debug TOGGLE
+        // Enemy AI gap sensors
         shapeRenderer.setColor(Color.CYAN);
         for (Enemy e : enemies) {
             float sensorX = e.movingRight ? e.bounds.x + e.bounds.width + 10 : e.bounds.x - 15;
-            shapeRenderer.rect(sensorX, e.bounds.y + e.bounds.height + 5, 5, 5); // Gap Sensor
+            shapeRenderer.rect(sensorX, e.bounds.y + e.bounds.height + 5, 5, 5); 
         }
         
-        // Player
+        // Draw Player
         if (!isDead) {
             shapeRenderer.setColor(Color.RED);
             float visWidth = player.width * playerScaleX;
@@ -338,22 +300,19 @@ public class GameScreen implements Screen {
             float visX = player.x + (player.width - visWidth) / 2f;
             float visY = (player.y + player.height) - visHeight;
             shapeRenderer.rect(visX, visY, visWidth, visHeight);
-            shapeRenderer.rect(visX, visY, visWidth, visHeight);
         }
 
-        // Calculate visual dimensions
-        float visWidth = player.width * playerScaleX;
-        float visHeight = player.height * playerScaleY;
-
-        // Offset the X and Y so the squish happens from the bottom-center
-        float visX = player.x + (player.width - visWidth) / 2f;
-        float visY = (player.y + player.height) - visHeight;
-
-        // Enemies
+        // Draw Enemies
         shapeRenderer.setColor(Color.YELLOW);
         for (Enemy e : enemies) shapeRenderer.rect(e.bounds.x, e.bounds.y, e.bounds.width, e.bounds.height);
 
-        // --- UPDATE PARTICLES ---
+        // Draw Enemy Stomp Hitbox (Top half visual debugging)
+        shapeRenderer.setColor(Color.BLACK); 
+        for (Enemy e : enemies){
+            shapeRenderer.rect(e.bounds.x, e.bounds.y, e.bounds.width, (e.bounds.height / 2));
+        }
+
+        // UPDATE PARTICLES
         for (int i = dustParticles.size - 1; i >= 0; i--) {
             Dust d = dustParticles.get(i);
             d.update(delta);
@@ -364,13 +323,12 @@ public class GameScreen implements Screen {
 
         shapeRenderer.end();
 
-        // Open a temporary block for transparent shapes
+        // Alpha blended rendering for particles
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
         for (Dust d : dustParticles) {
-            // Light gray/white dust with fading alpha
             shapeRenderer.setColor(0.8f, 0.8f, 0.8f, d.alpha);
             shapeRenderer.rect(d.x, d.y, d.size, d.size);
         }
@@ -378,7 +336,7 @@ public class GameScreen implements Screen {
         shapeRenderer.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
 
-        //Draw Typewriter
+        // Update Interactables
         bobCounter += dt;
         for (Interactable i : interactables) {
             i.update(dt, player);
@@ -397,7 +355,8 @@ public class GameScreen implements Screen {
                 }
             });
         }
-        // Draw the [E] Prompt
+
+        // Draw HUD/Interaction prompts
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
         for (Interactable i : interactables) {
@@ -407,36 +366,32 @@ public class GameScreen implements Screen {
         }
         batch.end();
 
-        // 3. DRAW DIALOG BOXES
         if (anyDialogOpen()) { 
             drawDialogBoxes();
         }
 
-        // 4. Update Logic (Can stay outside)
         updateEnemies(dt);
-        
     }
 
     private void updateEnemies(float dt) {
-        for (Enemy e : enemies) {
+        for (int i = enemies.size - 1; i >= 0; i--) {
+            Enemy e = enemies.get(i);
             e.tickHurtTimer(dt);
             boolean onPlatform = false;
 
-            // --- 1. HORIZONTAL MOVEMENT ---
+            // HORIZONTAL MOVEMENT
             float moveAmount = (e.movingRight ? 150f : -150f) * dt;
             e.bounds.x += moveAmount;
 
             for (Rectangle p : platforms) {
                 if (e.bounds.overlaps(p)) {
                     float footPos = e.bounds.y + e.bounds.height;
-                    // Threshold check: Is this a tiny step or a wall?
                     boolean isStepUp = p.y < footPos && p.y > footPos - 15;
 
                     if (isStepUp) {
                         e.velocity.y = -18f; 
                     } else {
                         e.movingRight = !e.movingRight;
-                        // Eject fully to avoid "pacing" jitter
                         if (e.movingRight) e.bounds.x = p.x + p.width + 2;
                         else e.bounds.x = p.x - e.bounds.width - 2;
                         break; 
@@ -445,38 +400,45 @@ public class GameScreen implements Screen {
             }
 
             // Collide with player logic
-            if(e.bounds.overlaps(player)){
-                // 'Bounce' away in the opposite direction
-                e.velocity.x -= 200;
-                e.bounds.x -= 200;
-                e.velocity.y -= 15;
+            if (e.bounds.overlaps(player)) {
+                Rectangle enemyTopHitbox = new Rectangle(
+                    e.bounds.x, 
+                    e.bounds.y, 
+                    e.bounds.width, 
+                    e.bounds.height / 2
+                );
+
+                if (player.overlaps(enemyTopHitbox)) {
+                    System.out.println("Kill");
+                    enemies.removeIndex(i);
+                    yVelocity = JUMP_SPEED * 0.6f; 
+                    onGround = false;
+                    continue;
+                } else {
+                    e.velocity.x -= 50;
+                    e.velocity.y -= 10;
+                }
             }
 
-            // Collide with death zone logic
-            if(e.bounds.overlaps(death)){
-
-            }
-
-            // --- 2. VERTICAL MOVEMENT ---
+            // VERTICAL MOVEMENT
             e.velocity.y += GRAVITY;
             e.bounds.y += e.velocity.y;
 
             for (Rectangle p : platforms) {
                 if (e.bounds.overlaps(p)) {
-                    if (e.velocity.y > 0) { // Landing
+                    if (e.velocity.y > 0) { 
                         e.bounds.y = p.y - e.bounds.height;
                         e.velocity.y = 0;
                         onPlatform = true; 
-                    } else if (e.velocity.y < 0) { // Ceiling
+                    } else if (e.velocity.y < 0) { 
                         e.bounds.y = p.y + p.height;
                         e.velocity.y = 0;
                     }
                 }
             }
 
-            // --- 3. GAP & LEAP LOGIC ---
+            // GAP & LEAP LOGIC
             if (onPlatform) {
-                // Gap Sensor: Position it about 10px in front of the enemy
                 float sensorX = e.movingRight ? e.bounds.x + e.bounds.width + 10 : e.bounds.x - 15;
                 Rectangle gapSensor = new Rectangle(sensorX, e.bounds.y + e.bounds.height + 5, 5, 5);
 
@@ -489,8 +451,6 @@ public class GameScreen implements Screen {
                 }
 
                 if (!groundAhead) {
-                    // Leap Sensor: Look ahead for a new platform, but NOT the current one
-                    // We start the search 40px away from the current edge
                     float leapX = e.movingRight ? e.bounds.x + e.bounds.width + 40 : e.bounds.x - 140;
                     Rectangle leapSensor = new Rectangle(leapX, e.bounds.y - 50, 100, 200);
 
@@ -503,9 +463,8 @@ public class GameScreen implements Screen {
                     }
 
                     if (landingSpotFound) {
-                        e.velocity.y = -16f; // Take the leap!
+                        e.velocity.y = -16f; 
                     } else {
-                        // No landing spot: Turn around and move away from the ledge
                         e.movingRight = !e.movingRight;
                         e.bounds.x += (e.movingRight ? 5 : -5); 
                     }
@@ -521,18 +480,17 @@ public class GameScreen implements Screen {
                     if (xVelocity > 0) player.x = p.x - player.width;
                     else if (xVelocity < 0) player.x = p.x + p.width;
                 } else {
-                    if (yVelocity > 0) { // Falling Down
-                        // TRIGGER ONLY ONCE ON LANDING
+                    if (yVelocity > 0) { 
                         if (wasFalling && yVelocity > 5f) { 
                             playerScaleX = 1.4f; 
                             playerScaleY = 0.7f;
-                            wasFalling = false; // Prevent re-squishing every frame
+                            wasFalling = false; 
                         }
                         
                         player.y = p.y - player.height;
                         onGround = true;
                         yVelocity = 0;
-                    } else if (yVelocity < 0) { // Hitting ceiling
+                    } else if (yVelocity < 0) { 
                         player.y = p.y + p.height;
                         yVelocity = 0;
                     }
@@ -542,7 +500,6 @@ public class GameScreen implements Screen {
     }
 
     private void drawDialogBoxes() {
-        // Enable transparency
         Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(com.badlogic.gdx.graphics.GL20.GL_SRC_ALPHA, com.badlogic.gdx.graphics.GL20.GL_ONE_MINUS_SRC_ALPHA);
 
@@ -565,7 +522,6 @@ public class GameScreen implements Screen {
         shapeRenderer.end();
         Gdx.gl.glDisable(com.badlogic.gdx.graphics.GL20.GL_BLEND);
 
-        // Now draw the text on top
         batch.begin();
         for (Interactable i : interactables) {
             if (i.isDialogOpen) {
@@ -597,16 +553,12 @@ public class GameScreen implements Screen {
         }
     }
 
-    private void triggerEnemyDeath() {
-
-    }
-
     private void respawnPlayer() {
         isDead = false;
         player.setPosition(respawnPoint.x, respawnPoint.y);
         xVelocity = 0;
         yVelocity = 0;
-        wasFalling = false; // Reset squish state
+        wasFalling = false; 
         System.out.println("Respawning at captured LDtk point: " + respawnPoint);
         
         enemies.clear();
@@ -616,11 +568,8 @@ public class GameScreen implements Screen {
     
     private void createDust(float x, float y, int count) {
         for (int i = 0; i < count; i++) {
-            // Random velocity: x is left/right, y is slightly upward
-            // Adjust the signs if your GRAVITY direction is inverted!
             float vx = MathUtils.random(-2f, 2f); 
-            float vy = MathUtils.random(-2f, 0f); // Assuming Y goes down for upward launch
-            
+            float vy = MathUtils.random(-2f, 0f); 
             dustParticles.add(new Dust(x, y, vx, vy));
         }
     }
@@ -632,23 +581,8 @@ public class GameScreen implements Screen {
         font.dispose();
     }
 
-    @Override
-    public void resize(int width, int height) {
-
-    }
-
-    @Override
-    public void pause() {
-
-    }
-
-    @Override
-    public void resume() {
-
-    }
-
-    @Override
-    public void hide() {
-
-    }
+    @Override public void resize(int width, int height) {}
+    @Override public void pause() {}
+    @Override public void resume() {}
+    @Override public void hide() {}
 }
