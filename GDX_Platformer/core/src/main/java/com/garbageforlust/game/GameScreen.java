@@ -32,6 +32,7 @@ public class GameScreen implements Screen {
     private boolean isWallGrabbing = false;
     private boolean onGround = false;
     private Array<Rectangle> platforms;
+    private Array<Rectangle> walls;
     private Array<Enemy> enemies;
 
     // Dashing variables:
@@ -80,6 +81,7 @@ public class GameScreen implements Screen {
         
         // Initialize the lists
         platforms = new Array<>();
+        walls = new Array<>();
         enemies = new Array<>();
         
         // Load the level
@@ -88,6 +90,7 @@ public class GameScreen implements Screen {
 
     private void loadLDtkLevel(String path) {
         platforms.clear();
+        walls.clear();
         com.badlogic.gdx.utils.JsonReader reader = new com.badlogic.gdx.utils.JsonReader();
         JsonValue root = reader.parse(Gdx.files.internal(path));
         
@@ -97,7 +100,7 @@ public class GameScreen implements Screen {
         for (JsonValue layer : layerInstances) {
             String layerName = layer.getString("__identifier");
 
-            // Load Collisions (IntGrid)
+            // Load Platforms
             if (layerName.equals("IntGrid")) {
                 int gridSize = layer.getInt("__gridSize");
                 int cWid = layer.getInt("__cWid");
@@ -108,6 +111,21 @@ public class GameScreen implements Screen {
                         int x = (i % cWid) * gridSize;
                         int y = (i / cWid) * gridSize;
                         platforms.add(new Rectangle(x, y, gridSize, gridSize));
+                    }
+                }
+            }
+
+            // Load Walls
+            if (layerName.equals("Walls")) {
+                int gridSize = layer.getInt("__gridSize");
+                int cWid = layer.getInt("__cWid");
+                int[] gridData = layer.get("intGridCsv").asIntArray();
+
+                for (int i = 0; i < gridData.length; i++) {
+                    if (gridData[i] > 0) { 
+                        int x = (i % cWid) * gridSize;
+                        int y = (i / cWid) * gridSize;
+                        walls.add(new Rectangle(x, y, gridSize, gridSize));
                     }
                 }
             }
@@ -241,12 +259,36 @@ public class GameScreen implements Screen {
                 // Wall Grab & Gravity
                 isWallGrabbing = false;
                 if (!onGround && Math.abs(xVelocity) > 0) {
-                    for (Rectangle p : platforms) {
-                        if (player.overlaps(p)) isWallGrabbing = true;
+                    for (Rectangle w : walls) {
+                        if (player.overlaps(w)){
+                            isWallGrabbing = true;
+                            System.out.println("Wall Grabbing");
+                        } 
                     }
                 }
 
-                if (isWallGrabbing) yVelocity = 50f * dt; 
+                if (isWallGrabbing){
+                    yVelocity = 10f * dt; 
+                    xVelocity = 0;
+                    if (Gdx.input.isKeyJustPressed(Input.Keys.W)) {
+                        // Jump off wall logic
+                        yVelocity = JUMP_SPEED;
+                        // TODO: Add hitbox to player to determine whether they're grabbing from the left or right here.
+                        xVelocity -= 10;
+                        onGround = false;
+                        coyoteCounter = 0;
+
+                        createDust(
+                            player.x + player.width / 2, 
+                            player.y + player.height, 
+                            5
+                        );
+
+                        // Stretch UP on jump
+                        playerScaleX = 0.8f; 
+                        playerScaleY = 1.3f;
+                    }
+                } 
                 else yVelocity += GRAVITY;
             }
 
@@ -284,6 +326,10 @@ public class GameScreen implements Screen {
         // Draw Platforms
         shapeRenderer.setColor(Color.GRAY);
         for (Rectangle p : platforms) shapeRenderer.rect(p.x, p.y, p.width, p.height);
+
+        // Draw Walls
+        shapeRenderer.setColor(Color.GRAY);
+        for (Rectangle w : walls) shapeRenderer.rect(w.x, w.y, w.width, w.height);
 
         // Enemy AI gap sensors
         shapeRenderer.setColor(Color.CYAN);
@@ -373,6 +419,7 @@ public class GameScreen implements Screen {
         updateEnemies(dt);
     }
 
+    // TODO: Add logic for enemies interacting with walls
     private void updateEnemies(float dt) {
         for (int i = enemies.size - 1; i >= 0; i--) {
             Enemy e = enemies.get(i);
@@ -409,9 +456,10 @@ public class GameScreen implements Screen {
                 );
 
                 if (player.overlaps(enemyTopHitbox)) {
+                    e.velocity.y = -10;
                     System.out.println("Kill");
                     enemies.removeIndex(i);
-                    yVelocity = JUMP_SPEED * 0.6f; 
+                    yVelocity = JUMP_SPEED * 0.6f;
                     onGround = false;
                     continue;
                 } else {
