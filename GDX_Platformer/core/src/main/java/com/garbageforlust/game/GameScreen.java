@@ -30,6 +30,8 @@ public class GameScreen implements Screen {
     private int coyoteCounter = 0;
     private final int COYOTE_TIME_MAX = 10; 
     private boolean isWallGrabbing = false;
+    private boolean leftGrab = false;
+    private boolean rightGrab = false;
     private boolean onGround = false;
     private Array<Rectangle> platforms;
     private Array<Rectangle> walls;
@@ -232,11 +234,23 @@ public class GameScreen implements Screen {
 
                 // Horizontal Input
                 if (Gdx.input.isKeyPressed(Input.Keys.A)) xVelocity = -MOVE_SPEED * dt;
-                else if (Gdx.input.isKeyPressed(Input.Keys.D)) xVelocity = MOVE_SPEED * dt;
+                else if (Gdx.input.isKeyPressed(Input.Keys.D)){
+                    if(rightGrab){
+                        while (xVelocity < 0){
+                            xVelocity += 0.01;
+                        }
+                        System.out.println("Right Wall Jump");
+                    } else{
+                        xVelocity = MOVE_SPEED * dt;
+                    }
+                } 
                 else xVelocity = 0;
 
                 // Coyote Time Logic
-                if (onGround) coyoteCounter = COYOTE_TIME_MAX;
+                if (onGround){
+                    coyoteCounter = COYOTE_TIME_MAX; 
+                    rightGrab = false;
+                }
                 else if (coyoteCounter > 0) coyoteCounter--;
 
                 // Jump Input
@@ -280,11 +294,35 @@ public class GameScreen implements Screen {
                     for (Rectangle w : walls) {
                         if (player.overlaps(w)){
                             isWallGrabbing = true;
+                            xVelocity = 0;
                             System.out.println("Wall Grabbing");
-                            if (rightHitbox.overlaps(w)){
-                                System.out.println("Right Hitbox");
-                            } else if (leftHitbox.overlaps(w)){
-                                System.out.println("Left Hitbox");
+                            yVelocity = 10f * dt; 
+                            xVelocity = 0;
+
+                            if (Gdx.input.isKeyJustPressed(Input.Keys.W)) {
+                                yVelocity = 10f * dt; 
+
+                                if (rightHitbox.overlaps(w)){
+                                    System.out.println("Right Hitbox");
+                                    rightGrab = true;
+                                    xVelocity = -10;
+                                } else if (leftHitbox.overlaps(w)){
+                                    System.out.println("Left Hitbox");
+                                    leftGrab = true;
+                                    xVelocity = 10;
+                                }
+                                onGround = false;
+                                coyoteCounter = 0;
+
+                                createDust(
+                                    player.x + player.width / 2, 
+                                    player.y + player.height, 
+                                    5
+                                );
+
+                                // Stretch UP on jump
+                                playerScaleX = 0.8f; 
+                                playerScaleY = 1.3f;
                             }
                         } 
                     }
@@ -296,8 +334,11 @@ public class GameScreen implements Screen {
                     if (Gdx.input.isKeyJustPressed(Input.Keys.W)) {
                         // Jump off wall logic
                         yVelocity = JUMP_SPEED;
-                        // TODO: Add hitbox to player to determine whether they're grabbing from the left or right here.
-                        xVelocity -= 10;
+                        if(rightGrab){
+                            xVelocity = -50;
+                            System.out.println("Right Grab");
+                        } 
+                        if(leftGrab) xVelocity = 10;
                         onGround = false;
                         coyoteCounter = 0;
 
