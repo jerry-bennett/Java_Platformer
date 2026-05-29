@@ -256,6 +256,24 @@ public class GameScreen implements Screen {
                     playerScaleY = 1.3f;
                 }
 
+                // Draw player left and right hitbox for wall grab debug
+
+                shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+                shapeRenderer.setColor(Color.FOREST);
+                float boxWidth = (player.width * playerScaleX) / 10;
+                float boxHeight = player.height * playerScaleY;
+                float visX = player.x + (player.width - boxWidth) / 2f;
+                float visY = (player.y + player.height) - boxHeight;
+
+                // Left
+                Rectangle leftHitbox = new Rectangle(visX - 25, visY, boxWidth, boxHeight);
+                shapeRenderer.rect(leftHitbox.x, leftHitbox.y, leftHitbox.width, leftHitbox.height);
+
+                // Right
+                Rectangle rightHitbox = new Rectangle(visX + 25, visY, boxWidth, boxHeight);
+                shapeRenderer.rect(rightHitbox.x, rightHitbox.y, rightHitbox.width, rightHitbox.height);
+                shapeRenderer.end();
+
                 // Wall Grab & Gravity
                 isWallGrabbing = false;
                 if (!onGround && Math.abs(xVelocity) > 0) {
@@ -263,6 +281,11 @@ public class GameScreen implements Screen {
                         if (player.overlaps(w)){
                             isWallGrabbing = true;
                             System.out.println("Wall Grabbing");
+                            if (rightHitbox.overlaps(w)){
+                                System.out.println("Right Hitbox");
+                            } else if (leftHitbox.overlaps(w)){
+                                System.out.println("Left Hitbox");
+                            }
                         } 
                     }
                 }
