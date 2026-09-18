@@ -525,6 +525,7 @@ public class GameScreen implements Screen {
                     enemies.removeIndex(i);
                     yVelocity = JUMP_SPEED * 0.6f;
                     onGround = false;
+                    yVelocity = 0.8;
                     continue;
                 } else {
                     e.velocity.x -= 50;
