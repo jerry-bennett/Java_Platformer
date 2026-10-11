@@ -512,7 +512,7 @@ public class GameScreen implements Screen {
 
             // Collide with player logic
             if (e.bounds.overlaps(player)) {
-                Rectangle enemyTopHitbox = new Rectangle(
+                Rectangle enemyTopHalf = new Rectangle(
                     e.bounds.x,
                     e.bounds.y,
                     e.bounds.width,
@@ -535,13 +535,13 @@ public class GameScreen implements Screen {
                     }
                 } else if (yVelocity > 0 && !onGround) {
                     // Player is still jumping downward
-                    if (player.y + player.height >= enemy.bounds.y - 5 &&
-                        player.y + player.height <= enemy.bounds.y + 5) {
+                    if (player.y + player.height >= e.bounds.y - 5 &&
+                        player.y + player.height <= e.bounds.y + 5) {
                         playerFeetNearEnemy = true;
                     }
                 }
 
-                if (player.overlaps(enemyTopHitbox) && playerFeetNearEnemy) {
+                if (player.overlaps(enemyTopHalf) && playerFeetNearEnemy) {
                     e.velocity.y = -10;
                     System.out.println("Kill");
                     enemies.removeIndex(i);
