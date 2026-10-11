@@ -23,11 +23,17 @@ public class GameScreen implements Screen {
 
     private Rectangle player;
     private float xVelocity = 0, yVelocity = 0;
-    private final float GRAVITY = 1.0f; 
-    private final float JUMP_SPEED = -15f; 
-    private final float MOVE_SPEED = 300f; 
+    private final float GRAVITY = 1.0f;
+    private final float JUMP_SPEED = -15f;
+    private final float MOVE_SPEED = 300f;
 
     private int coyoteCounter = 0;
+
+    // Track previous player position for stomp detection
+    private Rectangle prevPlayerBounds;
+
+    // Flag to indicate if we should apply upward push after collision
+    private boolean shouldPushUp = false;
     private final int COYOTE_TIME_MAX = 10; 
     private boolean isWallGrabbing = false;
     private boolean leftGrab = false;
@@ -80,7 +86,8 @@ public class GameScreen implements Screen {
         enemyRespawnPoint = new Vector2();
 
         player = new Rectangle(0, 0, 50, 50);
-        
+        prevPlayerBounds = new Rectangle(player.x, player.y, player.width, player.height);
+
         // Initialize the lists
         platforms = new Array<>();
         walls = new Array<>();
@@ -199,6 +206,9 @@ public class GameScreen implements Screen {
         }
         
         if (!isDead){
+            // Track previous player position for stomp detection BEFORE physics
+            prevPlayerBounds.set(player.x, player.y, player.width, player.height);
+
             // Check Death Zones
             for (Rectangle zone : deathZones) {
                 if (player.overlaps(zone)) {
@@ -374,10 +384,17 @@ public class GameScreen implements Screen {
                         player.setX(player.getX() - 10);
                         e.movingRight = true;
                     }
-                    yVelocity = (-2);
+                    // Stomp detection: only push up if player was falling onto enemy from above (true stomp)
+                    float prevBottom = prevPlayerBounds.y + prevPlayerBounds.height;
+                    boolean isStomp = prevBottom >= e.bounds.y && yVelocity < 0;
+
+                    if (isStomp || player.y < e.bounds.y) {
+                        // Apply upward push only in stomp or when already pushing down on enemy
+                        yVelocity = (-2);
+                    }
+                    }
                 }
             }
-        }
 
         // CAMERA & DRAWING
         camera.position.set(player.x + player.width/2, player.y + player.height/2, 0);
@@ -510,7 +527,7 @@ public class GameScreen implements Screen {
                 }
             }
 
-            // Collide with player logic
+            // Collide with player logic - Simplified stomp detection
             if (e.bounds.overlaps(player)) {
                 Rectangle enemyTopHalf = new Rectangle(
                     e.bounds.x,
@@ -519,38 +536,35 @@ public class GameScreen implements Screen {
                     e.bounds.height / 2
                 );
 
-                // Only kill enemy if player's FEET are overlapping enemy's top half
-                // (not just any overlap)
-                boolean playerFeetNearEnemy = false;
+                boolean isStomp = false;
 
-                // Check if player is falling and feet are near enemy
-                if (!wasFalling && yVelocity < 0) {
-                    // Player is hitting ground or moving downward
+                // Kill enemy if player overlaps with top half AND:
+                // - Player was moving downward (yVelocity < 0), OR
+                // - This is the first frame we see any overlap (prevPlayerBounds check)
+                if (player.overlaps(enemyTopHalf)) {
+                    float prevBottom = prevPlayerBounds.y + prevPlayerBounds.height;
+                    // Stomp: player was above enemy from previous frame AND moving down now
+                    isStomp = prevBottom >= e.bounds.y && yVelocity < 0;
+
+                    // Also kill if player's feet are near enemy top (even if not falling)
                     float playerBottomY = player.y + player.height;
                     float enemyTopY = e.bounds.y;
-
-                    // Feet must be below or at enemy's top, and close enough
-                    if (playerBottomY >= enemyTopY - 10 && Math.abs(playerBottomY - enemyTopY) < 5) {
-                        playerFeetNearEnemy = true;
-                    }
-                } else if (yVelocity > 0 && !onGround) {
-                    // Player is still jumping downward
-                    if (player.y + player.height >= e.bounds.y - 5 &&
-                        player.y + player.height <= e.bounds.y + 5) {
-                        playerFeetNearEnemy = true;
+                    if (playerBottomY >= enemyTopY - 20 && Math.abs(playerBottomY - enemyTopY) < 30) {
+                        isStomp = true;
                     }
                 }
 
-                if (player.overlaps(enemyTopHalf) && playerFeetNearEnemy) {
-                    e.velocity.y = -10;
-                    System.out.println("Kill");
-                    enemies.removeIndex(i);
-                    yVelocity = JUMP_SPEED * 0.6f;
+                if (isStomp) {
+                    System.out.println("Killed enemy!");
+                    e.velocity.y = -10; // Push enemy down slightly
+                    enemies.removeIndex(i); // Remove enemy from array
+                    createDust(e.bounds.x + e.bounds.width/2, e.bounds.y + e.bounds.height/2, 8);
+                    yVelocity = JUMP_SPEED * 0.6f; // Slightly reduced jump after kill
                     onGround = false;
-                    continue;
                 } else {
-                    e.velocity.x -= 50;
-                    e.velocity.y -= 10;
+                    // Not a stomp - push enemy away slightly
+                    e.velocity.x -= 30;
+                    e.velocity.y -= 5;
                 }
             }
 
@@ -684,7 +698,7 @@ public class GameScreen implements Screen {
             isDead = true;
             deathTimer = DEATH_DELAY;
             System.out.println("WASTED");
-        }
+        } 
     }
 
     private void respawnPlayer() {
