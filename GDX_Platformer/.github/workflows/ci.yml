@@ -25,14 +25,8 @@ jobs:
           java-version: ${{ matrix.java }}
           distribution: 'temurin'
 
-      - name: Cache Gradle wrapper
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/wrapper
-          key: gradle-${{ env.GRADLE_VERSION }}-${{ hashFiles('**/gradle-wrapper.properties') }}
-
-      - name: Build and test
+      - name: Build and test in core directory
         run: |
+          cd GDX_Platformer/core
           chmod +x gradlew || true
           ./gradlew test --tests "*Test"
