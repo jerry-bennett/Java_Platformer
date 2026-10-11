@@ -513,13 +513,35 @@ public class GameScreen implements Screen {
             // Collide with player logic
             if (e.bounds.overlaps(player)) {
                 Rectangle enemyTopHitbox = new Rectangle(
-                    e.bounds.x, 
-                    e.bounds.y, 
-                    e.bounds.width, 
+                    e.bounds.x,
+                    e.bounds.y,
+                    e.bounds.width,
                     e.bounds.height / 2
                 );
 
-                if (player.overlaps(enemyTopHitbox)) {
+                // Only kill enemy if player's FEET are overlapping enemy's top half
+                // (not just any overlap)
+                boolean playerFeetNearEnemy = false;
+
+                // Check if player is falling and feet are near enemy
+                if (!wasFalling && yVelocity < 0) {
+                    // Player is hitting ground or moving downward
+                    float playerBottomY = player.y + player.height;
+                    float enemyTopY = e.bounds.y;
+
+                    // Feet must be below or at enemy's top, and close enough
+                    if (playerBottomY >= enemyTopY - 10 && Math.abs(playerBottomY - enemyTopY) < 5) {
+                        playerFeetNearEnemy = true;
+                    }
+                } else if (yVelocity > 0 && !onGround) {
+                    // Player is still jumping downward
+                    if (player.y + player.height >= enemy.bounds.y - 5 &&
+                        player.y + player.height <= enemy.bounds.y + 5) {
+                        playerFeetNearEnemy = true;
+                    }
+                }
+
+                if (player.overlaps(enemyTopHitbox) && playerFeetNearEnemy) {
                     e.velocity.y = -10;
                     System.out.println("Kill");
                     enemies.removeIndex(i);
