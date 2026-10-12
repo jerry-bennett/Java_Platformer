@@ -37,7 +37,7 @@ Tests verify:
 
 Automated tests run on every push to `main`, `feat/*`, or `fix/*` branches via GitHub Actions. Failing tests will block the merge.
 
-See: `.github/workflows/test.yml`
+See: `.github/workflows/ci.yml`
 
 ## Gradle
 
@@ -84,6 +84,15 @@ GDX_Platformer/
 
 - **[docs/adr/](docs/adr/)** - Architecture Decision Records explaining key design choices
   - `001-enemy-collision.md` - Enemy collision implementation & stomp detection
+  - `002-tests-coverage.md` - Test simplification approach for failing tests
+
+## Legacy Code (BlackSquare)
+
+All files from the original BlackSquare Java game project have been archived in `LEGACY/`:
+
+- **Legacy modules**: `LEGACY/java/`, `LEGACY/fonts/`, `LEGACY/sfx/`, `LEGACY/levels/`
+- **Reference docs**: `LEGACY/docs/`
+- **Old class files**: Compiled `.class` files preserved for reference
 
 ## Contributing
 
