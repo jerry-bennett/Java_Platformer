@@ -32,8 +32,8 @@ jobs:
           path: ~/.gradle/wrapper
           key: gradle-${{ env.GRADLE_VERSION }}-${{ hashFiles('GDX_Platformer/gradle-wrapper.properties') }}
 
-      - name: Build and test in core directory
+      - name: Build and test all modules
         run: |
-          cd GDX_Platformer/core
+          cd GDX_Platformer
           chmod +x gradlew
-          ./gradlew test --tests "*Test"
+          ./gradlew :core:test --tests "*Test"
