@@ -29,11 +29,11 @@ jobs:
       - name: Cache Gradle wrapper
         uses: actions/cache@v4
         with:
-          path: GDX_Platformer/core/.gradle/wrapper
-          key: gradle-${{ env.GRADLE_VERSION }}-${{ hashFiles('GDX_Platformer/core/gradle-wrapper.properties') }}
+          path: ~/.gradle/wrapper
+          key: gradle-${{ env.GRADLE_VERSION }}-${{ hashFiles('GDX_Platformer/gradle-wrapper.properties') }}
 
-      - name: Build and test in core directory
+      - name: Build and test
         run: |
           cd GDX_Platformer/core
-          chmod +x gradlew || true
-          ./gradlew test --tests "*Test"
+          chmod +x ../../gradlew
+          ./../../gradlew test --tests "*Test"
