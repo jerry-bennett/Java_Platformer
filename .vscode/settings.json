@@ -2,5 +2,6 @@
     "java.project.referencedLibraries": [
         "lib/**/*.jar",
         "c:\\Users\\Jerry Benenett\\Downloads\\opencsv-5.7.1.jar"
-    ]
+    ],
+    "java.configuration.updateBuildConfiguration": "interactive"
 }

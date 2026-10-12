@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+**/build/
+!**/.gradle-wrapper.jar
+
+# IDE
+.idea/
+.vscode/settings.json
+*.iml
+*.ipr
+*.iws
+*.htaccess
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Compiled class files (except in LEGACY/)
+*.class
+GDX_Platformer/**/.class
+!LEGACY/**/.class

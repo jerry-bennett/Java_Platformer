@@ -17,7 +17,10 @@ public class Enemy {
     }
 
     public void tickHurtTimer(float dt) {
-        if (hurtTimer > 0) hurtTimer -= dt;
+        if (hurtTimer > 0) {
+            hurtTimer -= dt;
+            if (hurtTimer < 0) hurtTimer = 0; // Prevent negative values
+        }
     }
 
     public void respawn() {
