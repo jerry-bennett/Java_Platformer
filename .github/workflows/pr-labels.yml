@@ -4,44 +4,62 @@ name: Auto-Assign PR Labels
 
 on:
   pull_request:
-    types: [opened, edited, synchronize]
+    types: [opened, reopened, edited, labeled, unlabeled, synchronize]
+  issues:
+    types: [opened, edited, labeled, unlabeled]
 
 jobs:
   labeler:
     runs-on: ubuntu-latest
     permissions:
       issues: write
+      pull-requests: write
     steps:
       - name: Label PR based on title
         uses: actions/github-script@v6
         with:
           script: |
-            const title = context.payload.title.toLowerCase();
+            const payload = context.payload;
+
+            // Skip empty/invalid payloads
+            if (!payload.title || payload.title.trim() === '') {
+              core.setOutput('status', 'skipped');
+              return;
+            }
+
+            const title = String(payload.title).toLowerCase();
             let labelsToAdd = [];
 
-            if (title.includes('feat')) {
+            // Check for label patterns in title (e.g., feat(user-auth), fix(database))
+            if (/^feat\(/.test(title)) {
               labelsToAdd.push('feat');
             }
-            if (title.includes('fix')) {
+            if (/^fix\(/.test(title)) {
               labelsToAdd.push('fix');
             }
-            if (title.includes('test')) {
+            if (/^chore\(/.test(title)) {
+              labelsToAdd.push('chore');
+            }
+            if (/^test\(/.test(title)) {
               labelsToAdd.push('test');
             }
-            if (title.includes('docs')) {
+            if (/^docs\(/.test(title)) {
               labelsToAdd.push('docs');
             }
-            if (!title.match(/^feat|fix|chore|test|docs/)) {
+
+            // If no recognized pattern found, add needs-label reminder
+            if (labelsToAdd.length === 0 && !payload.labels.some(l => ['feat','fix','chore','test','docs'].includes(l.name))) {
               labelsToAdd.push('needs-label');
             }
 
             try {
               await github.rest.issues.addLabels({
-                issue_number: context.payload.number,
+                issue_number: payload.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 labels: labelsToAdd
               });
+              core.setOutput('status', 'success');
             } catch (error) {
               core.setFailed(`Error adding labels: ${error.message}`);
             }
