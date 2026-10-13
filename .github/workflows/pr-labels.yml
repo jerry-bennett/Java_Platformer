@@ -1,0 +1,47 @@
+# Automatically assign labels to PRs based on their title patterns
+
+name: Auto-Assign PR Labels
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  labeler:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Label PR based on title
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const title = context.payload.title.toLowerCase();
+            let labelsToAdd = [];
+
+            if (title.includes('feat')) {
+              labelsToAdd.push('feat');
+            }
+            if (title.includes('fix')) {
+              labelsToAdd.push('fix');
+            }
+            if (title.includes('test')) {
+              labelsToAdd.push('test');
+            }
+            if (title.includes('docs')) {
+              labelsToAdd.push('docs');
+            }
+            if (!title.match(/^feat|fix|chore|test|docs/)) {
+              labelsToAdd.push('needs-label');
+            }
+
+            try {
+              await github.rest.issues.addLabels({
+                issue_number: context.payload.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: labelsToAdd
+              });
+            } catch (error) {
+              core.setFailed(`Error adding labels: ${error.message}`);
+            }
