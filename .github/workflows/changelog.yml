@@ -1,0 +1,77 @@
+name: Update CHANGELOG
+
+# On every merge to main, regenerate CHANGELOG.md from merged PRs and open (or
+# update) a single PR from the `changelog/auto` branch. The bot never pushes to
+# main directly and never auto-merges — a human reviews and merges the PR once
+# its `gate` check is green. paths-ignore keeps the merged changelog-only PR from
+# retriggering this workflow (no loop). Per-release notes stay with
+# `gh release create --generate-notes`.
+#
+# Uses a PAT (secrets.CHANGELOG_PAT), NOT the default GITHUB_TOKEN: pushes/PRs
+# made with GITHUB_TOKEN don't trigger CI, so the required `gate` check would
+# never run and the PR could never be merged. The PAT should be fine-grained,
+# scoped to THIS repo, with Contents: write + Pull requests: write.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - CHANGELOG.md
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: changelog
+  cancel-in-progress: false
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history + tags for the generator
+          token: ${{ secrets.CHANGELOG_PAT }}
+      - name: Regenerate CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ secrets.CHANGELOG_PAT }}
+          REPO: ${{ github.repository }}
+        run: ./scripts/gen-changelog.sh
+      - name: Open/update changelog PR and enable auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.CHANGELOG_PAT }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Stage first, then check the staged diff — `git diff` alone can't see a
+          # brand-new (untracked) CHANGELOG.md, so the first run would skip it.
+          git add CHANGELOG.md
+          if git diff --cached --quiet -- CHANGELOG.md; then
+            echo "No changelog changes."
+            exit 0
+          fi
+
+          BRANCH="changelog/auto"
+          # Rebuild the branch as main + one changelog commit so the PR diff is
+          # just CHANGELOG.md. Bot-owned + disposable, so the force-push is safe.
+          git checkout -B "$BRANCH"
+          git commit -m "docs: update CHANGELOG"
+          git push --force origin "$BRANCH"
+
+          # Open the PR if none is open. A human merges it once `gate` is green —
+          # no auto-merge, no direct push to main.
+          if [ -z "$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number')" ]; then
+            gh pr create --base main --head "$BRANCH" \
+              --title "docs: update CHANGELOG" \
+              --body "Auto-generated from merged PRs by \`scripts/gen-changelog.sh\`. Merge once \`gate\` passes."
+          fi
+          # Close existing PR if one is open with the same branch
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number')
+          if [[ -n "$EXISTING_PR" ]]; then
+            gh pr edit "$EXISTING_PR" --edit-title "docs: update CHANGELOG" \
+              --edit-body "Auto-generated from merged PRs by \`scripts/gen-changelog.sh\`. Merge once \`gate\` passes."
+          fi
